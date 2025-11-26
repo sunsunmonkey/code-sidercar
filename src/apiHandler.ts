@@ -5,13 +5,11 @@ export type ApiConfiguration = {
   apiKey: string;
   baseUrl: string;
 };
+export type HistoryItem = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 export class ApiHandler {
   constructor(private apiConfiguration: ApiConfiguration) {}
-  async *createMassage(
-    systemPrompt: string,
-    messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]
-  ) {
+  async *createMassage(systemPrompt: string, messages: HistoryItem[]) {
     const client = new OpenAI({
       baseURL: this.apiConfiguration.baseUrl,
       apiKey: this.apiConfiguration.apiKey,

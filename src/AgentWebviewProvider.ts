@@ -6,11 +6,11 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   private webview: vscode.Webview | undefined;
   private currentTask: Task | undefined = undefined;
   private apiConfiguration: ApiConfiguration = {
-    model: "tencent/Hunyuan-MT-7B",
+    model: "MiniMaxAI/MiniMax-M2",
     apiKey: "sk-lhnpwtcdxoisnmrpvcdgzuaqdrqtpjlrebdbzikldxgqtvbl",
     baseUrl: "https://api.siliconflow.cn/v1/",
   };
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(readonly context: vscode.ExtensionContext) {}
 
   resolveWebviewView(
     webviewView: vscode.WebviewView,

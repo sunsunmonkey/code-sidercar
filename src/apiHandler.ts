@@ -1,15 +1,34 @@
 import { OpenAI } from "openai";
 
+/**
+ * API configuration for LLM service
+ */
 export type ApiConfiguration = {
   model: string;
   apiKey: string;
   baseUrl: string;
+  temperature?: number;
+  maxTokens?: number;
 };
+
+/**
+ * Message history item
+ */
 export type HistoryItem = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
+/**
+ * API Handler for communicating with LLM service
+ */
 export class ApiHandler {
   constructor(private apiConfiguration: ApiConfiguration) {}
-  async *createMassage(systemPrompt: string, messages: HistoryItem[]) {
+
+  /**
+   * Create a streaming message request to the LLM
+   * @param systemPrompt System prompt for the LLM
+   * @param messages Conversation history
+   * @returns AsyncGenerator yielding message chunks
+   */
+  async *createMessage(systemPrompt: string, messages: HistoryItem[]) {
     const client = new OpenAI({
       baseURL: this.apiConfiguration.baseUrl,
       apiKey: this.apiConfiguration.apiKey,
@@ -20,6 +39,8 @@ export class ApiHandler {
         stream: true,
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         model: this.apiConfiguration.model,
+        temperature: this.apiConfiguration.temperature,
+        max_tokens: this.apiConfiguration.maxTokens,
       };
 
     const { data: completion } = await client.chat.completions
@@ -30,6 +51,26 @@ export class ApiHandler {
       if (chunk.choices[0].delta.content) {
         yield chunk.choices[0].delta.content;
       }
+    }
+  }
+
+  /**
+   * Validate API configuration
+   * @returns Promise<boolean> indicating if configuration is valid
+   */
+  async validateConfiguration(): Promise<boolean> {
+    try {
+      const client = new OpenAI({
+        baseURL: this.apiConfiguration.baseUrl,
+        apiKey: this.apiConfiguration.apiKey,
+      });
+
+      // Try a simple request to validate
+      await client.models.list();
+      return true;
+    } catch (error) {
+      console.error("API configuration validation failed:", error);
+      return false;
     }
   }
 }

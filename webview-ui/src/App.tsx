@@ -9,7 +9,7 @@ function App() {
   const input = useRef<HTMLInputElement>(null);
 
   useEvent("message", (e: MessageEvent) => {
-    setMessage(message + e.data);
+    setMessage(message + e.data.content);
   });
 
   const postMessage = async () => {

@@ -6,7 +6,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   private webview: vscode.Webview | undefined;
   private currentTask: Task | undefined = undefined;
   private apiConfiguration: ApiConfiguration = {
-    model: "MiniMaxAI/MiniMax-M2",
+    model: "deepseek-ai/DeepSeek-V3",
     apiKey: "sk-lhnpwtcdxoisnmrpvcdgzuaqdrqtpjlrebdbzikldxgqtvbl",
     baseUrl: "https://api.siliconflow.cn/v1/",
   };

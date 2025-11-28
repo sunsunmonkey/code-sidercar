@@ -1,0 +1,47 @@
+/**
+ * Theme fallback CSS variables
+ * Provides fallback values for VSCode CSS variables that might not be available in all themes
+ * 
+ * This file ensures that:
+ * - All theme-dependent colors have sensible defaults
+ * - Light and dark themes have appropriate color values
+ * - High contrast themes maintain accessibility
+ * - Missing VSCode variables don't break the UI
+ * 
+ * The fallback strategy:
+ * 1. Define default values in :root for all custom variables
+ * 2. Override with theme-specific values for light/dark/high-contrast
+ * 3. Use var() with fallback chains for maximum compatibility
+ * 
+ * Requirements: 3.5 - VSCode theme adaptation
+ */
+
+:root {
+  /* Fallback for testing icons if not available */
+  --vscode-testing-iconPassed: #73bf69;
+  --vscode-testing-iconFailed: #f44747;
+  
+  /* Fallback for list error hover if not available */
+  --vscode-list-errorHoverBackground: var(--vscode-list-hoverBackground);
+  
+  /* Fallback for input validation backgrounds */
+  --vscode-inputValidation-infoBackground: var(--vscode-inputValidation-warningBackground, rgba(100, 150, 255, 0.15));
+  
+  /* Fallback for text link active foreground */
+  --vscode-textLink-activeForeground: var(--vscode-textLink-foreground);
+  
+  /* Fallback for charts colors */
+  --vscode-charts-blue: #007acc;
+}
+
+/* Light theme specific overrides */
+body[data-vscode-theme-kind="vscode-light"] {
+  --vscode-testing-iconPassed: #388a34;
+  --vscode-testing-iconFailed: #d73a49;
+}
+
+/* High contrast theme specific overrides */
+body[data-vscode-theme-kind="vscode-high-contrast"] {
+  --vscode-testing-iconPassed: #89d185;
+  --vscode-testing-iconFailed: #f48771;
+}

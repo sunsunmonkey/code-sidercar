@@ -27,30 +27,39 @@ export class ApiHandler {
    * @param systemPrompt System prompt for the LLM
    * @param messages Conversation history
    * @returns AsyncGenerator yielding message chunks
+   * @throws Error if API call fails (Requirements 12.1, 12.4)
    */
   async *createMessage(systemPrompt: string, messages: HistoryItem[]) {
-    const client = new OpenAI({
-      baseURL: this.apiConfiguration.baseUrl,
-      apiKey: this.apiConfiguration.apiKey,
-    });
+    try {
+      const client = new OpenAI({
+        baseURL: this.apiConfiguration.baseUrl,
+        apiKey: this.apiConfiguration.apiKey,
+      });
 
-    const request: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming =
-      {
-        stream: true,
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
-        model: this.apiConfiguration.model,
-        temperature: this.apiConfiguration.temperature,
-        max_tokens: this.apiConfiguration.maxTokens,
-      };
+      const request: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming =
+        {
+          stream: true,
+          messages: [{ role: "system", content: systemPrompt }, ...messages],
+          model: this.apiConfiguration.model,
+          temperature: this.apiConfiguration.temperature,
+          max_tokens: this.apiConfiguration.maxTokens,
+        };
 
-    const { data: completion } = await client.chat.completions
-      .create(request)
-      .withResponse();
+      const { data: completion } = await client.chat.completions
+        .create(request)
+        .withResponse();
 
-    for await (const chunk of completion) {
-      if (chunk.choices[0].delta.content) {
-        yield chunk.choices[0].delta.content;
+      for await (const chunk of completion) {
+        if (chunk.choices[0].delta.content) {
+          yield chunk.choices[0].delta.content;
+        }
       }
+    } catch (error) {
+      // Re-throw with more context for error handler (Requirement 12.1)
+      if (error instanceof Error) {
+        throw new Error(`API request failed: ${error.message}`);
+      }
+      throw error;
     }
   }
 

@@ -16,6 +16,10 @@
       {
         "command": "coding-agent-slim.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "coding-agent-slim.configureApi",
+        "title": "Coding Agent: Configure API"
       }
     ],
     "viewsContainers": {
@@ -35,6 +39,84 @@
           "name": "Coding Agent Slim"
         }
       ]
+    },
+    "configuration": {
+      "title": "Coding Agent",
+      "properties": {
+        "codingAgent.api.baseUrl": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "Base URL for the LLM API endpoint"
+        },
+        "codingAgent.api.model": {
+          "type": "string",
+          "default": "gpt-4",
+          "description": "Model name to use for LLM requests"
+        },
+        "codingAgent.api.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Temperature for LLM responses (0-2)"
+        },
+        "codingAgent.api.maxTokens": {
+          "type": "number",
+          "default": 4096,
+          "minimum": 1,
+          "description": "Maximum tokens for LLM responses"
+        },
+        "codingAgent.permissions.allowReadByDefault": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow file read operations without confirmation"
+        },
+        "codingAgent.permissions.allowWriteByDefault": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow file write operations without confirmation"
+        },
+        "codingAgent.permissions.allowExecuteByDefault": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow command execution without confirmation"
+        },
+        "codingAgent.permissions.alwaysConfirm": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "delete",
+            "execute"
+          ],
+          "description": "Operations that always require confirmation"
+        },
+        "codingAgent.defaultMode": {
+          "type": "string",
+          "enum": [
+            "architect",
+            "code",
+            "ask",
+            "debug"
+          ],
+          "default": "code",
+          "description": "Default work mode for the agent"
+        },
+        "codingAgent.maxLoopCount": {
+          "type": "number",
+          "default": 25,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Maximum number of ReAct loop iterations"
+        },
+        "codingAgent.contextWindowSize": {
+          "type": "number",
+          "default": 100000,
+          "minimum": 1000,
+          "description": "Maximum context window size in characters"
+        }
+      }
     }
   },
   "scripts": {

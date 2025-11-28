@@ -3,6 +3,8 @@ import { AgentWebviewProvider } from "./AgentWebviewProvider";
 import { ToolExecutor } from "./tools";
 import { PromptBuilder } from "./PromptBuilder";
 import { XMLParser } from "fast-xml-parser";
+import { ContextCollector, ProjectContext } from "./ContextCollector";
+import { ErrorHandler, ErrorContext } from "./ErrorHandler";
 
 /**
  * Text content in assistant message
@@ -48,124 +50,204 @@ export class Task {
   private readonly id: string;
   private toolExecutor: ToolExecutor;
   private promptBuilder?: PromptBuilder;
+  private contextCollector: ContextCollector;
+  private context?: ProjectContext;
+  private conversationHistoryManager?: any; // ConversationHistoryManager
+  private errorHandler: ErrorHandler;
 
   constructor(
     private provider: AgentWebviewProvider,
     private apiConfiguration: ApiConfiguration,
     private message: string,
     toolExecutor?: ToolExecutor,
-    promptBuilder?: PromptBuilder
+    promptBuilder?: PromptBuilder,
+    contextCollector?: ContextCollector,
+    conversationHistoryManager?: any,
+    errorHandler?: ErrorHandler
   ) {
     this.id = `task-${Date.now()}-${Math.random()
       .toString(36)
       .substring(2, 11)}`;
     this.toolExecutor = toolExecutor || new ToolExecutor();
     this.promptBuilder = promptBuilder;
+    this.contextCollector = contextCollector || new ContextCollector();
+    this.conversationHistoryManager = conversationHistoryManager;
+    this.errorHandler = errorHandler || new ErrorHandler();
   }
 
   /**
    * Start the task and initiate the ReAct loop
+   * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 4.3, 4.4, 12.1, 12.2, 12.3, 12.4, 12.5
    */
   async start() {
-    this.history.push({ role: "user", content: this.message });
-    await this.recursivelyMakeRequest(this.history);
+    try {
+      // Load conversation history if available (Requirement 4.3)
+      if (this.conversationHistoryManager) {
+        const previousMessages = this.conversationHistoryManager.getTruncatedMessages();
+        this.history = [...previousMessages];
+        console.log(`[Task ${this.id}] Loaded ${previousMessages.length} messages from history`);
+      }
+      
+      // Collect context before starting (Requirement 8.1)
+      console.log(`[Task ${this.id}] Collecting project context...`);
+      this.context = await this.contextCollector.collectContext();
+      
+      // Format user message with context (Requirement 8.1, 8.4)
+      const messageWithContext = this.formatUserMessageWithContext(
+        this.message,
+        this.context
+      );
+      
+      const userMessage: HistoryItem = { role: "user", content: messageWithContext };
+      this.history.push(userMessage);
+      
+      // Save user message to history (Requirement 4.3)
+      if (this.conversationHistoryManager) {
+        this.conversationHistoryManager.addMessage(userMessage);
+      }
+      
+      await this.recursivelyMakeRequest(this.history);
+    } catch (error) {
+      // Handle errors at the top level (Requirements 12.1, 12.2, 12.3, 12.4, 12.5)
+      this.handleTaskError(error, 'task_start');
+    }
+  }
+
+  /**
+   * Format user message with context information
+   * Requirements: 8.1, 8.3, 8.4
+   */
+  private formatUserMessageWithContext(
+    message: string,
+    context: ProjectContext
+  ): string {
+    const parts: string[] = [];
+    
+    // Add user message first
+    parts.push("# User Request");
+    parts.push(message);
+    
+    // Add context information
+    const contextStr = this.contextCollector.formatContext(context);
+    if (contextStr) {
+      parts.push("\n# Project Context");
+      parts.push(contextStr);
+    }
+    
+    return parts.join("\n");
   }
 
   /**
    * Recursively execute the ReAct loop
-   * Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7
+   * Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 12.1, 12.2, 12.3, 12.4, 12.5
    */
   private async recursivelyMakeRequest(history: HistoryItem[]) {
-    // Check loop count limit (Requirement 6.7)
-    if (!this.shouldContinueLoop()) {
-      this.provider.postMessageToWebview({
-        type: "error",
-        message: `已达到最大循环次数限制 (${this.MAX_LOOPS})。任务可能过于复杂，请简化任务或分解为多个步骤。`,
-      });
-      this.provider.postMessageToWebview({ type: "task_complete" });
-      return;
-    }
-
-    this.loopCount++;
-
-    const apiHandler = new ApiHandler(this.apiConfiguration);
-    const systemPrompt = await this.getSystemPrompt();
-
-    // Stream LLM response (Requirement 6.1)
-    const stream = apiHandler.createMessage(systemPrompt, history);
-
-    let assistantMessage = "";
-    for await (const chunk of stream) {
-      assistantMessage += chunk;
-      this.provider.postMessageToWebview({
-        type: "stream_chunk",
-        content: chunk,
-      });
-      console.log
-    }
-
-    console.log(
-      `[Task ${this.id}] Loop ${this.loopCount}: Assistant response received`
-    );
-
-    // Add assistant message to history
-    this.history.push({ role: "assistant", content: assistantMessage });
-
-    // Parse assistant message for tool calls (Requirement 6.1, 6.2)
-    const assistantContent = this.parseAssistantMessage(assistantMessage);
-    const toolCalls = assistantContent.filter(
-      (content): content is ToolUse => content.type === "tool_use"
-    );
-
-    // If no tool calls found, prompt LLM to use tools (Requirement 6.6)
-    if (toolCalls.length === 0) {
-      console.log(
-        `[Task ${this.id}] No tool calls found, prompting to use tools`
-      );
-
-      // Check if this is a completion scenario or if we need to prompt for tool use
-      const hasTextContent = assistantContent.some((c) => c.type === "text");
-
-      if (hasTextContent) {
-        // LLM provided reasoning but no tool - prompt to use a tool
-        this.history.push({ role: "user", content: this.noToolsUsed() });
-        await this.recursivelyMakeRequest(this.history);
-      } else {
-        // Empty response - end the loop
-        console.log(`[Task ${this.id}] Empty response, ending ReAct loop`);
+    try {
+      // Check loop count limit (Requirement 6.7)
+      if (!this.shouldContinueLoop()) {
+        this.provider.postMessageToWebview({
+          type: "error",
+          message: `已达到最大循环次数限制 (${this.MAX_LOOPS})。任务可能过于复杂，请简化任务或分解为多个步骤。`,
+        });
         this.provider.postMessageToWebview({ type: "task_complete" });
+        return;
       }
-      return;
-    }
 
-    // Check if attempt_completion was called (Requirement 6.6)
-    const hasCompletion = this.hasAttemptCompletion(toolCalls);
+      this.loopCount++;
 
-    // Execute tool calls and get results (Requirement 6.2, 6.3)
-    const toolResults = await this.handleToolCalls(toolCalls);
+      const apiHandler = new ApiHandler(this.apiConfiguration);
+      const systemPrompt = await this.getSystemPrompt();
 
-    // Add tool results to history as user messages (Requirement 6.3, 6.4)
-    for (const result of toolResults) {
-      const resultMessage = this.formatToolResult(result);
-      this.history.push({ role: "user", content: resultMessage });
+      // Stream LLM response (Requirement 6.1)
+      const stream = apiHandler.createMessage(systemPrompt, history);
 
-      this.provider.postMessageToWebview({
-        type: "tool_result",
-        result: result,
-      });
-    }
+      let assistantMessage = "";
+      for await (const chunk of stream) {
+        assistantMessage += chunk;
+        this.provider.postMessageToWebview({
+          type: "stream_chunk",
+          content: chunk,
+        });
+      }
 
-    // If attempt_completion was called, end the ReAct loop (Requirement 6.6)
-    if (hasCompletion) {
       console.log(
-        `[Task ${this.id}] Task completion requested, ending ReAct loop`
+        `[Task ${this.id}] Loop ${this.loopCount}: Assistant response received`
       );
-      this.provider.postMessageToWebview({ type: "task_complete" });
-      return;
-    }
 
-    // Continue the ReAct loop (Requirement 6.4, 6.5)
-    await this.recursivelyMakeRequest(this.history);
+      // Add assistant message to history
+      const assistantHistoryItem: HistoryItem = { role: "assistant", content: assistantMessage };
+      this.history.push(assistantHistoryItem);
+      
+      // Save assistant message to history (Requirement 4.3)
+      if (this.conversationHistoryManager) {
+        this.conversationHistoryManager.addMessage(assistantHistoryItem);
+      }
+
+      // Parse assistant message for tool calls (Requirement 6.1, 6.2)
+      const assistantContent = this.parseAssistantMessage(assistantMessage);
+      const toolCalls = assistantContent.filter(
+        (content): content is ToolUse => content.type === "tool_use"
+      );
+
+      // If no tool calls found, prompt LLM to use tools (Requirement 6.6)
+      if (toolCalls.length === 0) {
+        console.log(
+          `[Task ${this.id}] No tool calls found, prompting to use tools`
+        );
+
+        // Check if this is a completion scenario or if we need to prompt for tool use
+        const hasTextContent = assistantContent.some((c) => c.type === "text");
+
+        if (hasTextContent) {
+          // LLM provided reasoning but no tool - prompt to use a tool
+          this.history.push({ role: "user", content: this.noToolsUsed() });
+          await this.recursivelyMakeRequest(this.history);
+        } else {
+          // Empty response - end the loop
+          console.log(`[Task ${this.id}] Empty response, ending ReAct loop`);
+          this.provider.postMessageToWebview({ type: "task_complete" });
+        }
+        return;
+      }
+
+      // Check if attempt_completion was called (Requirement 6.6)
+      const hasCompletion = this.hasAttemptCompletion(toolCalls);
+
+      // Execute tool calls and get results (Requirement 6.2, 6.3)
+      const toolResults = await this.handleToolCalls(toolCalls);
+
+      // Add tool results to history as user messages (Requirement 6.3, 6.4, 4.3)
+      for (const result of toolResults) {
+        const resultMessage = this.formatToolResult(result);
+        const toolResultHistoryItem: HistoryItem = { role: "user", content: resultMessage };
+        this.history.push(toolResultHistoryItem);
+        
+        // Save tool result to history (Requirement 4.3)
+        if (this.conversationHistoryManager) {
+          this.conversationHistoryManager.addMessage(toolResultHistoryItem);
+        }
+
+        this.provider.postMessageToWebview({
+          type: "tool_result",
+          result: result,
+        });
+      }
+
+      // If attempt_completion was called, end the ReAct loop (Requirement 6.6)
+      if (hasCompletion) {
+        console.log(
+          `[Task ${this.id}] Task completion requested, ending ReAct loop`
+        );
+        this.provider.postMessageToWebview({ type: "task_complete" });
+        return;
+      }
+
+      // Continue the ReAct loop (Requirement 6.4, 6.5)
+      await this.recursivelyMakeRequest(this.history);
+    } catch (error) {
+      // Handle errors in ReAct loop (Requirements 12.1, 12.2, 12.3, 12.4, 12.5)
+      await this.handleTaskError(error, `react_loop_${this.loopCount}`);
+    }
   }
 
   /**
@@ -334,6 +416,84 @@ export class Task {
    */
   public getToolExecutor(): ToolExecutor {
     return this.toolExecutor;
+  }
+
+  /**
+   * Get context collector
+   */
+  public getContextCollector(): ContextCollector {
+    return this.contextCollector;
+  }
+
+  /**
+   * Get collected context
+   */
+  public getContext(): ProjectContext | undefined {
+    return this.context;
+  }
+
+  /**
+   * Get error handler
+   */
+  public getErrorHandler(): ErrorHandler {
+    return this.errorHandler;
+  }
+
+  /**
+   * Handle task errors with error handler
+   * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5
+   */
+  private async handleTaskError(error: unknown, operation: string): Promise<void> {
+    const errorContext: ErrorContext = {
+      operation,
+      timestamp: new Date(),
+      userMessage: this.message,
+      additionalInfo: {
+        taskId: this.id,
+        loopCount: this.loopCount,
+      },
+    };
+
+    // Handle the error and get response
+    const errorResponse = this.errorHandler.handleError(error, errorContext);
+
+    // Display error message to user (Requirement 12.1, 12.2, 12.3)
+    this.provider.postMessageToWebview({
+      type: "error",
+      message: errorResponse.userMessage,
+    });
+
+    // Attempt recovery if error is retryable (Requirement 12.4, 12.5)
+    if (errorResponse.shouldRetry) {
+      const canRecover = await this.errorHandler.attemptRecovery(error, errorContext);
+      
+      if (canRecover) {
+        console.log(`[Task ${this.id}] Attempting recovery for ${operation}`);
+        
+        // For network errors, retry the request
+        if (this.errorHandler.isRetryable(error)) {
+          // Wait a bit before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Retry the request
+          try {
+            await this.recursivelyMakeRequest(this.history);
+            
+            // Reset retry attempts on success
+            this.errorHandler.resetRetryAttempts(operation);
+            return;
+          } catch (retryError) {
+            // If retry fails, handle it again
+            await this.handleTaskError(retryError, operation);
+            return;
+          }
+        }
+      }
+    }
+
+    // If no recovery or recovery failed, end the task
+    console.error(`[Task ${this.id}] Task failed due to error in ${operation}`);
+    this.provider.postMessageToWebview({ type: "task_complete" });
   }
 
   /**

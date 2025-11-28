@@ -1,10 +1,15 @@
 import * as vscode from "vscode";
 import { Task, ToolUse, ToolResult } from "./task";
 import { ApiConfiguration } from "./apiHandler";
-import { ToolExecutor, EchoTool, AttemptCompletionTool, ReadFileTool, WriteFileTool, ListFilesTool } from "./tools";
+import { ToolExecutor, EchoTool, AttemptCompletionTool, ReadFileTool, WriteFileTool, ListFilesTool, ApplyDiffTool, InsertContentTool, SearchFilesTool, ExecuteCommandTool, GetDiagnosticsTool, ListCodeDefinitionNamesTool } from "./tools";
 import { ModeManager, WorkMode } from "./ModeManager";
 import { PromptBuilder } from "./PromptBuilder";
 import { PermissionManager } from "./PermissionManager";
+import { ContextCollector } from "./ContextCollector";
+import { ConfigurationManager } from "./ConfigurationManager";
+import { ConversationHistoryManager } from "./ConversationHistoryManager";
+import { OperationHistoryManager, OperationRecord } from "./OperationHistoryManager";
+import { ErrorHandler } from "./ErrorHandler";
 
 /**
  * Message types sent to webview
@@ -15,14 +20,20 @@ export type WebviewMessage =
   | { type: "tool_result"; result: ToolResult }
   | { type: "error"; message: string }
   | { type: "task_complete" }
-  | { type: "mode_changed"; mode: WorkMode };
+  | { type: "mode_changed"; mode: WorkMode }
+  | { type: "conversation_cleared" }
+  | { type: "operation_recorded"; operation: OperationRecord }
+  | { type: "operation_history"; operations: OperationRecord[] };
 
 /**
  * Message types received from webview
  */
 export type UserMessage = 
   | { type: "user_message"; content: string }
-  | { type: "mode_change"; mode: WorkMode };
+  | { type: "mode_change"; mode: WorkMode }
+  | { type: "clear_conversation" }
+  | { type: "get_operation_history" }
+  | { type: "clear_operation_history" };
 
 /**
  * Agent Webview Provider manages the sidebar panel and task execution
@@ -34,30 +45,88 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   private modeManager: ModeManager;
   private promptBuilder: PromptBuilder;
   private permissionManager: PermissionManager;
+  private contextCollector: ContextCollector;
+  private configurationManager: ConfigurationManager;
+  private conversationHistoryManager: ConversationHistoryManager;
+  private operationHistoryManager: OperationHistoryManager;
+  private errorHandler: ErrorHandler;
   private apiConfiguration: ApiConfiguration = {
-    model: "deepseek-ai/DeepSeek-V3",
-    apiKey: "sk-lhnpwtcdxoisnmrpvcdgzuaqdrqtpjlrebdbzikldxgqtvbl",
-    baseUrl: "https://api.siliconflow.cn/v1/",
+    model: "gpt-4",
+    apiKey: "",
+    baseUrl: "https://api.openai.com/v1",
   };
 
   constructor(readonly context: vscode.ExtensionContext) {
+    // Initialize configuration manager (Requirements: 10.1, 10.2, 10.3, 10.4, 10.5)
+    this.configurationManager = new ConfigurationManager(context);
+    
     // Initialize permission manager (Requirements: 5.1, 5.2, 5.3, 5.4, 5.5)
     this.permissionManager = new PermissionManager();
+    
+    // Initialize operation history manager (Requirements: 11.1, 11.2, 11.3, 11.4, 11.5)
+    this.operationHistoryManager = new OperationHistoryManager(context);
+    
+    // Initialize error handler (Requirements: 12.1, 12.2, 12.3, 12.4, 12.5)
+    this.errorHandler = new ErrorHandler();
     
     // Initialize tool executor and register default tools
     this.toolExecutor = new ToolExecutor();
     this.toolExecutor.setPermissionManager(this.permissionManager);
+    this.toolExecutor.setOperationHistoryManager(this.operationHistoryManager);
+    this.toolExecutor.setErrorHandler(this.errorHandler);
     this.registerDefaultTools();
     
     // Initialize mode manager and prompt builder
     // Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6
     this.modeManager = new ModeManager();
     this.promptBuilder = new PromptBuilder(this.modeManager, this.toolExecutor, this.context);
+    
+    // Initialize context collector (Requirements: 8.1, 8.2, 8.3, 8.4, 8.5)
+    this.contextCollector = new ContextCollector();
+    
+    // Initialize conversation history manager (Requirements: 4.3, 4.4, 4.5)
+    this.conversationHistoryManager = new ConversationHistoryManager(context);
+    
+    // Load configuration and set up change listener
+    this.initializeConfiguration();
+  }
+
+  /**
+   * Initialize configuration from settings
+   * Requirements: 10.1, 10.2, 10.3, 10.5
+   */
+  private async initializeConfiguration(): Promise<void> {
+    try {
+      // Load configuration
+      const config = await this.configurationManager.getConfiguration();
+      
+      // Update API configuration
+      this.apiConfiguration = config.api;
+      
+      // Update permission settings
+      this.permissionManager.updateSettings(config.permissions);
+      
+      // Set default mode
+      this.modeManager.switchMode(config.defaultMode);
+      
+      console.log('[AgentWebviewProvider] Configuration initialized');
+      
+      // Listen for configuration changes
+      this.context.subscriptions.push(
+        this.configurationManager.onConfigurationChanged((newConfig) => {
+          this.apiConfiguration = newConfig.api;
+          this.permissionManager.updateSettings(newConfig.permissions);
+          console.log('[AgentWebviewProvider] Configuration updated');
+        })
+      );
+    } catch (error) {
+      console.error('[AgentWebviewProvider] Failed to initialize configuration:', error);
+    }
   }
 
   /**
    * Register default tools
-   * Requirements: 13.1, 13.2, 13.4, 6.6
+   * Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 6.6
    */
   private registerDefaultTools(): void {
     // Register echo tool for testing
@@ -70,6 +139,16 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
     this.toolExecutor.registerTool(new ReadFileTool());
     this.toolExecutor.registerTool(new WriteFileTool());
     this.toolExecutor.registerTool(new ListFilesTool());
+    
+    // Register advanced file editing tools (Requirements 13.3, 13.5)
+    this.toolExecutor.registerTool(new ApplyDiffTool());
+    this.toolExecutor.registerTool(new InsertContentTool());
+    this.toolExecutor.registerTool(new SearchFilesTool());
+    
+    // Register command execution and diagnostics tools (Requirements 13.5, 13.6)
+    this.toolExecutor.registerTool(new ExecuteCommandTool());
+    this.toolExecutor.registerTool(new GetDiagnosticsTool());
+    this.toolExecutor.registerTool(new ListCodeDefinitionNamesTool());
     
     console.log(`Registered ${this.toolExecutor.getToolCount()} tools`);
   }
@@ -127,12 +206,40 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
 
   /**
    * Handle messages from webview
-   * Requirements: 7.5, 7.6
+   * Requirements: 7.5, 7.6, 8.1, 8.2, 8.3, 8.4, 8.5, 10.5, 4.5, 11.2, 11.3, 11.5
    */
   private async handleMessage(message: any): Promise<void> {
     // Handle mode change messages
     if (message.type === "mode_change") {
       this.handleModeChange(message.mode);
+      return;
+    }
+    
+    // Handle clear conversation messages (Requirement 4.5)
+    if (message.type === "clear_conversation") {
+      this.handleClearConversation();
+      return;
+    }
+    
+    // Handle get operation history messages (Requirements: 11.2, 11.3)
+    if (message.type === "get_operation_history") {
+      this.handleGetOperationHistory();
+      return;
+    }
+    
+    // Handle clear operation history messages (Requirement 11.5)
+    if (message.type === "clear_operation_history") {
+      this.handleClearOperationHistory();
+      return;
+    }
+    
+    // Check if API is configured before starting task (Requirement 10.5)
+    const isConfigured = await this.configurationManager.promptConfigureApiIfNeeded();
+    if (!isConfigured) {
+      this.postMessageToWebview({
+        type: "error",
+        message: "API is not configured. Please configure your API settings first.",
+      });
       return;
     }
     
@@ -144,7 +251,10 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
         this.apiConfiguration, 
         message, 
         this.toolExecutor,
-        this.promptBuilder
+        this.promptBuilder,
+        this.contextCollector,
+        this.conversationHistoryManager,
+        this.errorHandler
       );
       await this.currentTask.start();
     } else if (message.type === "user_message") {
@@ -153,7 +263,10 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
         this.apiConfiguration, 
         message.content, 
         this.toolExecutor,
-        this.promptBuilder
+        this.promptBuilder,
+        this.contextCollector,
+        this.conversationHistoryManager,
+        this.errorHandler
       );
       await this.currentTask.start();
     }
@@ -186,6 +299,81 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       this.postMessageToWebview({
         type: "error",
         message: `Failed to switch mode: ${errorMessage}`,
+      });
+    }
+  }
+
+  /**
+   * Handle clear conversation request
+   * Requirement 4.5: Support clearing conversation
+   */
+  private handleClearConversation(): void {
+    try {
+      this.conversationHistoryManager.clearConversation();
+      
+      // Notify webview that conversation was cleared
+      this.postMessageToWebview({
+        type: "conversation_cleared",
+      });
+      
+      console.log('[AgentWebviewProvider] Conversation cleared');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[AgentWebviewProvider] Failed to clear conversation:', error);
+      this.postMessageToWebview({
+        type: "error",
+        message: `Failed to clear conversation: ${errorMessage}`,
+      });
+    }
+  }
+
+  /**
+   * Handle get operation history request
+   * Requirements: 11.2, 11.3
+   */
+  private handleGetOperationHistory(): void {
+    try {
+      const operations = this.operationHistoryManager.getAllOperations();
+      
+      // Send operation history to webview
+      this.postMessageToWebview({
+        type: "operation_history",
+        operations,
+      });
+      
+      console.log(`[AgentWebviewProvider] Sent ${operations.length} operations to webview`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[AgentWebviewProvider] Failed to get operation history:', error);
+      this.postMessageToWebview({
+        type: "error",
+        message: `Failed to get operation history: ${errorMessage}`,
+      });
+    }
+  }
+
+  /**
+   * Handle clear operation history request
+   * Requirement 11.5
+   */
+  private handleClearOperationHistory(): void {
+    try {
+      this.operationHistoryManager.clearHistory();
+      
+      // Send empty operation history to webview
+      this.postMessageToWebview({
+        type: "operation_history",
+        operations: [],
+      });
+      
+      vscode.window.showInformationMessage('Operation history cleared');
+      console.log('[AgentWebviewProvider] Operation history cleared');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[AgentWebviewProvider] Failed to clear operation history:', error);
+      this.postMessageToWebview({
+        type: "error",
+        message: `Failed to clear operation history: ${errorMessage}`,
       });
     }
   }
@@ -248,5 +436,45 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
    */
   getPermissionManager(): PermissionManager {
     return this.permissionManager;
+  }
+
+  /**
+   * Get context collector
+   * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5
+   */
+  getContextCollector(): ContextCollector {
+    return this.contextCollector;
+  }
+
+  /**
+   * Get configuration manager
+   * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5
+   */
+  getConfigurationManager(): ConfigurationManager {
+    return this.configurationManager;
+  }
+
+  /**
+   * Get conversation history manager
+   * Requirements: 4.3, 4.4, 4.5
+   */
+  getConversationHistoryManager(): ConversationHistoryManager {
+    return this.conversationHistoryManager;
+  }
+
+  /**
+   * Get operation history manager
+   * Requirements: 11.1, 11.2, 11.3, 11.4, 11.5
+   */
+  getOperationHistoryManager(): OperationHistoryManager {
+    return this.operationHistoryManager;
+  }
+
+  /**
+   * Get error handler
+   * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5
+   */
+  getErrorHandler(): ErrorHandler {
+    return this.errorHandler;
   }
 }

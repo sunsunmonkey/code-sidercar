@@ -1,6 +1,8 @@
 import { Tool, ToolDefinition } from './Tool';
 import { ToolUse, ToolResult } from '../task';
 import { PermissionManager, PermissionRequest } from '../PermissionManager';
+import { OperationHistoryManager } from '../OperationHistoryManager';
+import { ErrorHandler, ErrorContext } from '../ErrorHandler';
 
 /**
  * ToolExecutor manages tool registration and execution
@@ -9,6 +11,8 @@ import { PermissionManager, PermissionRequest } from '../PermissionManager';
 export class ToolExecutor {
   private tools: Map<string, Tool> = new Map();
   private permissionManager: PermissionManager | undefined;
+  private operationHistoryManager: OperationHistoryManager | undefined;
+  private errorHandler: ErrorHandler | undefined;
 
   /**
    * Set permission manager for tool execution
@@ -21,6 +25,34 @@ export class ToolExecutor {
   }
 
   /**
+   * Set operation history manager for recording operations
+   * Requirements: 11.1, 11.2
+   * @param operationHistoryManager Operation history manager instance
+   */
+  setOperationHistoryManager(operationHistoryManager: OperationHistoryManager): void {
+    this.operationHistoryManager = operationHistoryManager;
+    
+    // Set operation history manager on all registered tools that support it
+    for (const tool of this.tools.values()) {
+      if ('setOperationHistoryManager' in tool && typeof (tool as any).setOperationHistoryManager === 'function') {
+        (tool as any).setOperationHistoryManager(operationHistoryManager);
+      }
+    }
+    
+    console.log('[ToolExecutor] Operation history manager set');
+  }
+
+  /**
+   * Set error handler for tool execution error handling
+   * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5
+   * @param errorHandler Error handler instance
+   */
+  setErrorHandler(errorHandler: ErrorHandler): void {
+    this.errorHandler = errorHandler;
+    console.log('[ToolExecutor] Error handler set');
+  }
+
+  /**
    * Register a tool
    * Requirement: 13.2
    * @param tool Tool instance to register
@@ -30,6 +62,12 @@ export class ToolExecutor {
       console.warn(`Tool ${tool.name} is already registered. Overwriting.`);
     }
     this.tools.set(tool.name, tool);
+    
+    // Set operation history manager on the tool if it supports it
+    if (this.operationHistoryManager && 'setOperationHistoryManager' in tool && typeof (tool as any).setOperationHistoryManager === 'function') {
+      (tool as any).setOperationHistoryManager(this.operationHistoryManager);
+    }
+    
     console.log(`Tool registered: ${tool.name}`);
   }
 
@@ -122,6 +160,28 @@ export class ToolExecutor {
     } catch (error) {
       console.error(`Tool execution error for ${toolUse.name}:`, error);
       
+      // Use error handler if available (Requirements 12.2, 12.3)
+      if (this.errorHandler) {
+        const errorContext: ErrorContext = {
+          operation: `tool_execution_${toolUse.name}`,
+          timestamp: new Date(),
+          additionalInfo: {
+            toolName: toolUse.name,
+            params: toolUse.params,
+          },
+        };
+        
+        const errorResponse = this.errorHandler.handleError(error, errorContext);
+        
+        return {
+          type: 'tool_result',
+          tool_name: toolUse.name,
+          content: errorResponse.userMessage,
+          is_error: true,
+        };
+      }
+      
+      // Fallback if no error handler
       const errorMessage = error instanceof Error ? error.message : String(error);
       
       return {

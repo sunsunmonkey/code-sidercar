@@ -49,12 +49,12 @@
       "properties": {
         "codingAgent.api.baseUrl": {
           "type": "string",
-          "default": "https://api.openai.com/v1",
+          "default": "",
           "description": "Base URL for the LLM API endpoint"
         },
         "codingAgent.api.model": {
           "type": "string",
-          "default": "gpt-4",
+          "default": "",
           "description": "Model name to use for LLM requests"
         },
         "codingAgent.api.temperature": {

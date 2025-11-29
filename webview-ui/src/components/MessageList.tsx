@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Message } from './Message';
 import type { DisplayMessage } from '../types';
-import './MessageList.css';
 
 interface MessageListProps {
   messages: DisplayMessage[];
@@ -25,18 +24,20 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
 
   if (messages.length === 0) {
     return (
-      <div className="message-list-empty">
-        <div className="empty-state">
-          <div className="empty-icon">💬</div>
-          <h3>No messages yet</h3>
-          <p>Start a conversation by typing a message below</p>
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="text-center text-[var(--vscode-descriptionForeground)]">
+          <div className="text-5xl mb-4">💬</div>
+          <h3 className="m-0 mb-2 text-[var(--vscode-foreground)] text-lg font-semibold">
+            No messages yet
+          </h3>
+          <p className="m-0 text-sm">Start a conversation by typing a message below</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="message-list" ref={containerRef}>
+    <div className="flex-1 overflow-y-auto p-4 flex flex-col" ref={containerRef}>
       {messages.map((message) => (
         <Message key={message.id} message={message} />
       ))}

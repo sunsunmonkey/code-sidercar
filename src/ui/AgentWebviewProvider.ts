@@ -1,14 +1,29 @@
 import * as vscode from "vscode";
 import { Task, ToolUse, ToolResult } from "../core/task";
 import { ApiConfiguration } from "../core/apiHandler";
-import { ToolExecutor, EchoTool, AttemptCompletionTool, ReadFileTool, WriteFileTool, ListFilesTool, ApplyDiffTool, InsertContentTool, SearchFilesTool, ExecuteCommandTool, GetDiagnosticsTool, ListCodeDefinitionNamesTool } from "../tools";
+import {
+  ToolExecutor,
+  AttemptCompletionTool,
+  ReadFileTool,
+  WriteFileTool,
+  ListFilesTool,
+  ApplyDiffTool,
+  InsertContentTool,
+  SearchFilesTool,
+  ExecuteCommandTool,
+  GetDiagnosticsTool,
+  ListCodeDefinitionNamesTool,
+} from "../tools";
 import { ModeManager, WorkMode } from "../managers/ModeManager";
 import { PromptBuilder } from "../managers/PromptBuilder";
 import { PermissionManager } from "../managers/PermissionManager";
 import { ContextCollector } from "../managers/ContextCollector";
 import { ConfigurationManager } from "../config/ConfigurationManager";
 import { ConversationHistoryManager } from "../managers/ConversationHistoryManager";
-import { OperationHistoryManager, OperationRecord } from "../managers/OperationHistoryManager";
+import {
+  OperationHistoryManager,
+  OperationRecord,
+} from "../managers/OperationHistoryManager";
 import { ErrorHandler } from "../managers/ErrorHandler";
 
 /**
@@ -27,7 +42,12 @@ export type WebviewMessage =
   | { type: "navigate"; route: string }
   | { type: "configuration_loaded"; config: any; isFirstTime?: boolean }
   | { type: "configuration_saved"; success: boolean; error?: string }
-  | { type: "connection_test_result"; success: boolean; error?: string; responseTime?: number }
+  | {
+      type: "connection_test_result";
+      success: boolean;
+      error?: string;
+      responseTime?: number;
+    }
   | { type: "configuration_exported"; data: string; filename: string }
   | { type: "configuration_imported"; success: boolean; error?: string }
   | { type: "validation_error"; errors: Record<string, string> };
@@ -35,7 +55,7 @@ export type WebviewMessage =
 /**
  * Message types received from webview
  */
-export type UserMessage = 
+export type UserMessage =
   | { type: "user_message"; content: string }
   | { type: "mode_change"; mode: WorkMode }
   | { type: "clear_conversation" }
@@ -64,42 +84,45 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   private operationHistoryManager: OperationHistoryManager;
   private errorHandler: ErrorHandler;
   private apiConfiguration: ApiConfiguration = {
-    model: "gpt-4",
+    model: "",
     apiKey: "",
-    baseUrl: "https://api.openai.com/v1",
+    baseUrl: "",
   };
 
   constructor(readonly context: vscode.ExtensionContext) {
-    // Initialize configuration manager (Requirements: 10.1, 10.2, 10.3, 10.4, 10.5)
+    // Initialize configuration manager
     this.configurationManager = new ConfigurationManager(context);
-    
-    // Initialize permission manager (Requirements: 5.1, 5.2, 5.3, 5.4, 5.5)
+
+    // Initialize permission manager
     this.permissionManager = new PermissionManager();
-    
-    // Initialize operation history manager (Requirements: 11.1, 11.2, 11.3, 11.4, 11.5)
+
+    // Initialize operation history manager
     this.operationHistoryManager = new OperationHistoryManager(context);
-    
-    // Initialize error handler (Requirements: 12.1, 12.2, 12.3, 12.4, 12.5)
+
+    // Initialize error handler
     this.errorHandler = new ErrorHandler();
-    
+
     // Initialize tool executor and register default tools
     this.toolExecutor = new ToolExecutor();
     this.toolExecutor.setPermissionManager(this.permissionManager);
     this.toolExecutor.setOperationHistoryManager(this.operationHistoryManager);
     this.toolExecutor.setErrorHandler(this.errorHandler);
     this.registerDefaultTools();
-    
+
     // Initialize mode manager and prompt builder
-    // Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6
     this.modeManager = new ModeManager();
-    this.promptBuilder = new PromptBuilder(this.modeManager, this.toolExecutor, this.context);
-    
-    // Initialize context collector (Requirements: 8.1, 8.2, 8.3, 8.4, 8.5)
+    this.promptBuilder = new PromptBuilder(
+      this.modeManager,
+      this.toolExecutor,
+      this.context
+    );
+
+    // Initialize context collector
     this.contextCollector = new ContextCollector();
-    
-    // Initialize conversation history manager (Requirements: 4.3, 4.4, 4.5)
+
+    // Initialize conversation history manager
     this.conversationHistoryManager = new ConversationHistoryManager(context);
-    
+
     // Load configuration and set up change listener
     this.initializeConfiguration();
   }
@@ -112,28 +135,31 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
     try {
       // Load configuration
       const config = await this.configurationManager.getConfiguration();
-      
+
       // Update API configuration
       this.apiConfiguration = config.api;
-      
+
       // Update permission settings
       this.permissionManager.updateSettings(config.permissions);
-      
+
       // Set default mode
       this.modeManager.switchMode(config.defaultMode);
-      
-      console.log('[AgentWebviewProvider] Configuration initialized');
-      
+
+      console.log("[AgentWebviewProvider] Configuration initialized");
+
       // Listen for configuration changes
       this.context.subscriptions.push(
         this.configurationManager.onConfigurationChanged((newConfig) => {
           this.apiConfiguration = newConfig.api;
           this.permissionManager.updateSettings(newConfig.permissions);
-          console.log('[AgentWebviewProvider] Configuration updated');
+          console.log("[AgentWebviewProvider] Configuration updated");
         })
       );
     } catch (error) {
-      console.error('[AgentWebviewProvider] Failed to initialize configuration:', error);
+      console.error(
+        "[AgentWebviewProvider] Failed to initialize configuration:",
+        error
+      );
     }
   }
 
@@ -142,27 +168,24 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
    * Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 6.6
    */
   private registerDefaultTools(): void {
-    // Register echo tool for testing
-    this.toolExecutor.registerTool(new EchoTool());
-    
     // Register attempt_completion tool (Requirement 6.6)
     this.toolExecutor.registerTool(new AttemptCompletionTool());
-    
+
     // Register file operation tools (Requirements 13.1, 13.2, 13.4)
     this.toolExecutor.registerTool(new ReadFileTool());
     this.toolExecutor.registerTool(new WriteFileTool());
     this.toolExecutor.registerTool(new ListFilesTool());
-    
+
     // Register advanced file editing tools (Requirements 13.3, 13.5)
     this.toolExecutor.registerTool(new ApplyDiffTool());
     this.toolExecutor.registerTool(new InsertContentTool());
     this.toolExecutor.registerTool(new SearchFilesTool());
-    
+
     // Register command execution and diagnostics tools (Requirements 13.5, 13.6)
     this.toolExecutor.registerTool(new ExecuteCommandTool());
     this.toolExecutor.registerTool(new GetDiagnosticsTool());
     this.toolExecutor.registerTool(new ListCodeDefinitionNamesTool());
-    
+
     console.log(`Registered ${this.toolExecutor.getToolCount()} tools`);
   }
 
@@ -231,19 +254,19 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       this.handleModeChange(message.mode);
       return;
     }
-    
+
     // Handle clear conversation messages (Requirement 4.5)
     if (message.type === "clear_conversation") {
       this.handleClearConversation();
       return;
     }
-    
+
     // Handle get operation history messages (Requirements: 11.2, 11.3)
     if (message.type === "get_operation_history") {
       this.handleGetOperationHistory();
       return;
     }
-    
+
     // Handle clear operation history messages (Requirement 11.5)
     if (message.type === "clear_operation_history") {
       this.handleClearOperationHistory();
@@ -280,24 +303,26 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       await this.handleResetToDefaults();
       return;
     }
-    
+
     // Check if API is configured before starting task (Requirement 10.5)
-    const isConfigured = await this.configurationManager.promptConfigureApiIfNeeded();
+    const isConfigured =
+      await this.configurationManager.promptConfigureApiIfNeeded();
     if (!isConfigured) {
       this.postMessageToWebview({
         type: "error",
-        message: "API is not configured. Please configure your API settings first.",
+        message:
+          "API is not configured. Please configure your API settings first.",
       });
       return;
     }
-    
+
     // Handle user messages
     if (typeof message === "string") {
       vscode.window.showInformationMessage(message);
       this.currentTask = new Task(
-        this, 
-        this.apiConfiguration, 
-        message, 
+        this,
+        this.apiConfiguration,
+        message,
         this.toolExecutor,
         this.promptBuilder,
         this.contextCollector,
@@ -307,9 +332,9 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       await this.currentTask.start();
     } else if (message.type === "user_message") {
       this.currentTask = new Task(
-        this, 
-        this.apiConfiguration, 
-        message.content, 
+        this,
+        this.apiConfiguration,
+        message.content,
         this.toolExecutor,
         this.promptBuilder,
         this.contextCollector,
@@ -328,21 +353,22 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
     try {
       this.modeManager.switchMode(mode);
       const modeDefinition = this.modeManager.getCurrentModeDefinition();
-      
+
       // Notify webview of mode change
       this.postMessageToWebview({
         type: "mode_changed",
         mode: mode,
       });
-      
+
       // Show notification to user
       vscode.window.showInformationMessage(
         `Switched to ${modeDefinition.icon} ${modeDefinition.name} mode`
       );
-      
+
       console.log(`[AgentWebviewProvider] Mode changed to: ${mode}`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       vscode.window.showErrorMessage(`Failed to switch mode: ${errorMessage}`);
       this.postMessageToWebview({
         type: "error",
@@ -358,16 +384,20 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   private handleClearConversation(): void {
     try {
       this.conversationHistoryManager.clearConversation();
-      
+
       // Notify webview that conversation was cleared
       this.postMessageToWebview({
         type: "conversation_cleared",
       });
-      
-      console.log('[AgentWebviewProvider] Conversation cleared');
+
+      console.log("[AgentWebviewProvider] Conversation cleared");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[AgentWebviewProvider] Failed to clear conversation:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        "[AgentWebviewProvider] Failed to clear conversation:",
+        error
+      );
       this.postMessageToWebview({
         type: "error",
         message: `Failed to clear conversation: ${errorMessage}`,
@@ -382,17 +412,23 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   private handleGetOperationHistory(): void {
     try {
       const operations = this.operationHistoryManager.getAllOperations();
-      
+
       // Send operation history to webview
       this.postMessageToWebview({
         type: "operation_history",
         operations,
       });
-      
-      console.log(`[AgentWebviewProvider] Sent ${operations.length} operations to webview`);
+
+      console.log(
+        `[AgentWebviewProvider] Sent ${operations.length} operations to webview`
+      );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[AgentWebviewProvider] Failed to get operation history:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        "[AgentWebviewProvider] Failed to get operation history:",
+        error
+      );
       this.postMessageToWebview({
         type: "error",
         message: `Failed to get operation history: ${errorMessage}`,
@@ -407,18 +443,22 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   private handleClearOperationHistory(): void {
     try {
       this.operationHistoryManager.clearHistory();
-      
+
       // Send empty operation history to webview
       this.postMessageToWebview({
         type: "operation_history",
         operations: [],
       });
-      
-      vscode.window.showInformationMessage('Operation history cleared');
-      console.log('[AgentWebviewProvider] Operation history cleared');
+
+      vscode.window.showInformationMessage("Operation history cleared");
+      console.log("[AgentWebviewProvider] Operation history cleared");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[AgentWebviewProvider] Failed to clear operation history:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        "[AgentWebviewProvider] Failed to clear operation history:",
+        error
+      );
       this.postMessageToWebview({
         type: "error",
         message: `Failed to clear operation history: ${errorMessage}`,
@@ -550,7 +590,8 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
         isFirstTime,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.postMessageToWebview({
         type: "validation_error",
         errors: { general: `Failed to load configuration: ${errorMessage}` },
@@ -578,14 +619,17 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
 
       vscode.window.showInformationMessage("Configuration saved successfully");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.postMessageToWebview({
         type: "configuration_saved",
         success: false,
         error: errorMessage,
       });
 
-      vscode.window.showErrorMessage(`Failed to save configuration: ${errorMessage}`);
+      vscode.window.showErrorMessage(
+        `Failed to save configuration: ${errorMessage}`
+      );
     }
   }
 
@@ -596,7 +640,8 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
     const startTime = Date.now();
 
     try {
-      const validationResult = await this.configurationManager.validateApiConfiguration(apiConfig);
+      const validationResult =
+        await this.configurationManager.validateApiConfiguration(apiConfig);
 
       if (!validationResult.valid) {
         this.postMessageToWebview({
@@ -615,16 +660,21 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
         responseTime,
       });
 
-      vscode.window.showInformationMessage(`API connection successful (${responseTime}ms)`);
+      vscode.window.showInformationMessage(
+        `API connection successful (${responseTime}ms)`
+      );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.postMessageToWebview({
         type: "connection_test_result",
         success: false,
         error: errorMessage,
       });
 
-      vscode.window.showErrorMessage(`API connection test failed: ${errorMessage}`);
+      vscode.window.showErrorMessage(
+        `API connection test failed: ${errorMessage}`
+      );
     }
   }
 
@@ -633,9 +683,13 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
    */
   private async handleExportConfiguration(): Promise<void> {
     try {
-      const exportedConfig = await this.configurationManager.exportConfiguration();
+      const exportedConfig =
+        await this.configurationManager.exportConfiguration();
       const configJson = JSON.stringify(exportedConfig, null, 2);
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .slice(0, -5);
       const filename = `coding-agent-config-${timestamp}.json`;
 
       const uri = await vscode.window.showSaveDialog({
@@ -647,7 +701,10 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       });
 
       if (uri) {
-        await vscode.workspace.fs.writeFile(uri, Buffer.from(configJson, "utf8"));
+        await vscode.workspace.fs.writeFile(
+          uri,
+          Buffer.from(configJson, "utf8")
+        );
 
         this.postMessageToWebview({
           type: "configuration_exported",
@@ -655,11 +712,16 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
           filename: filename,
         });
 
-        vscode.window.showInformationMessage(`Configuration exported to ${uri.fsPath}`);
+        vscode.window.showInformationMessage(
+          `Configuration exported to ${uri.fsPath}`
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      vscode.window.showErrorMessage(`Failed to export configuration: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      vscode.window.showErrorMessage(
+        `Failed to export configuration: ${errorMessage}`
+      );
     }
   }
 
@@ -678,16 +740,21 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
 
       await this.handleGetConfiguration();
 
-      vscode.window.showInformationMessage("Configuration imported successfully. Please set your API key.");
+      vscode.window.showInformationMessage(
+        "Configuration imported successfully. Please set your API key."
+      );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.postMessageToWebview({
         type: "configuration_imported",
         success: false,
         error: errorMessage,
       });
 
-      vscode.window.showErrorMessage(`Failed to import configuration: ${errorMessage}`);
+      vscode.window.showErrorMessage(
+        `Failed to import configuration: ${errorMessage}`
+      );
     }
   }
 
@@ -711,8 +778,11 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
 
       vscode.window.showInformationMessage("Configuration reset to defaults");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      vscode.window.showErrorMessage(`Failed to reset configuration: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      vscode.window.showErrorMessage(
+        `Failed to reset configuration: ${errorMessage}`
+      );
     }
   }
 }

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Toggle } from '../common/Toggle';
-import './ConfigSection.css';
 
 export interface PermissionsSectionProps {
   permissions: {
@@ -16,8 +15,10 @@ export const PermissionsSection: React.FC<PermissionsSectionProps> = ({
   onChange,
 }) => {
   return (
-    <section className="config-section">
-      <h2>Permission Settings</h2>
+    <section className="p-4 mb-4 border border-[var(--vscode-panel-border)] rounded bg-[var(--vscode-editor-background)] transition-all">
+      <h2 className="text-base font-semibold text-[var(--vscode-foreground)] m-0 mb-4 pb-2 border-b border-[var(--vscode-panel-border)]">
+        Permission Settings
+      </h2>
       <Toggle
         label="Allow Read by Default"
         checked={permissions.allowReadByDefault}

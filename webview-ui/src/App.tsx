@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react";
-import "./App.css";
 import { MessageList } from "./components/MessageList";
 import { InputBox } from "./components/InputBox";
 import { ModeSelector } from "./components/ModeSelector";
@@ -12,7 +11,7 @@ import type {
   WorkMode,
 } from "./types";
 import { useNavigate } from "react-router-dom";
-import { useVSCodeApi } from "./hooks";
+import { vscode } from "./utils/vscode";
 
 /**
  * Main App component for the AI Coding Assistant webview
@@ -24,7 +23,6 @@ function App() {
     useState<DisplayMessage | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentMode, setCurrentMode] = useState<WorkMode>("code");
-  const { vscode } = useVSCodeApi();
   /**
    * Handle messages from the extension
    * Requirements: 4.1, 4.2, 14.1, 14.2, 4.5
@@ -274,19 +272,18 @@ function App() {
   const navigate = useNavigate();
 
   const navigateToConfig = () => {
-    console.log(111);
     navigate("/config");
   };
 
   return (
-    <div className="app-container">
-      <div className="app-header">
+    <div className="flex flex-col h-screen w-full">
+      <div className="flex items-center justify-between gap-2 p-3 bg-[var(--vscode-sideBar-background)] border-b border-[var(--vscode-panel-border)] flex-shrink-0">
         <ModeSelector
           currentMode={currentMode}
           onModeChange={handleModeChange}
         />
         <button
-          className="config-button"
+          className="bg-transparent border border-[var(--vscode-button-border,transparent)] text-[var(--vscode-button-foreground)] px-2 py-1 cursor-pointer rounded-sm text-base transition-colors hover:bg-[var(--vscode-button-hoverBackground)]"
           onClick={navigateToConfig}
           title="Open Configuration"
         >

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Input } from '../common/Input';
-import './ConfigSection.css';
 
 export interface ApiConfigSectionProps {
   config: {
@@ -55,8 +54,12 @@ export const ApiConfigSection: React.FC<ApiConfigSectionProps> = ({
   };
 
   return (
-    <section className={`config-section ${isFirstTime ? 'first-time-highlight' : ''}`}>
-      <h2>API Settings {isFirstTime && <span className="required-indicator">*Required</span>}</h2>
+    <section className={`p-4 mb-4 border border-[var(--vscode-panel-border)] rounded bg-[var(--vscode-editor-background)] transition-all ${
+      isFirstTime ? 'border-2 border-[var(--vscode-textLink-foreground)] rounded-md p-[18px]' : ''
+    }`}>
+      <h2 className="text-base font-semibold text-[var(--vscode-foreground)] m-0 mb-4 pb-2 border-b border-[var(--vscode-panel-border)]">
+        API Settings {isFirstTime && <span className="text-xs text-[var(--vscode-errorForeground)] font-normal ml-2">*Required</span>}
+      </h2>
       <Input
         label={`Base URL${isFirstTime ? ' *' : ''}`}
         value={config.baseUrl}

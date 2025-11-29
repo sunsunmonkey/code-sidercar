@@ -7,15 +7,13 @@ import ConfigApp from "./ConfigApp.tsx";
 
 const router = createBrowserRouter([
   {
-    path: "/",
-    element: <ConfigApp />,
+    path: "/index.html",
+    element: <App />,
   },
   {
     path: "/config",
-    element: <App />,
+    element: <ConfigApp />,
   },
-  { path: "/index.html", element: <ConfigApp /> },
-  { path: "*", element: <App /> },
 ]);
 
 createRoot(document.getElementById("root")!).render(

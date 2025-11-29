@@ -1,7 +1,6 @@
 import React from 'react';
 import { Input } from '../common/Input';
 import type { WorkMode } from '../../types';
-import './ConfigSection.css';
 
 export interface AdvancedSectionProps {
   advanced: {
@@ -40,14 +39,16 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
   };
 
   return (
-    <section className="config-section">
-      <h2>Advanced Settings</h2>
-      <div className="input-group">
-        <label className="input-label">Default Mode</label>
+    <section className="p-4 mb-4 border border-[var(--vscode-panel-border)] rounded bg-[var(--vscode-editor-background)] transition-all">
+      <h2 className="text-base font-semibold text-[var(--vscode-foreground)] m-0 mb-4 pb-2 border-b border-[var(--vscode-panel-border)]">
+        Advanced Settings
+      </h2>
+      <div className="flex flex-col gap-1.5 mb-4">
+        <label className="text-[13px] font-medium text-[var(--vscode-foreground)] select-none">Default Mode</label>
         <select
           value={advanced.defaultMode}
           onChange={(e) => handleModeChange(e.target.value)}
-          className="input-field"
+          className="w-full px-2 py-1.5 text-[13px] text-[var(--vscode-input-foreground)] bg-[var(--vscode-input-background)] border border-[var(--vscode-input-border,var(--vscode-panel-border))] rounded-sm outline-none cursor-pointer transition-all hover:border-[var(--vscode-inputOption-activeBorder,var(--vscode-focusBorder))] focus:border-[var(--vscode-focusBorder)]"
         >
           <option value="architect">Architect</option>
           <option value="code">Code</option>

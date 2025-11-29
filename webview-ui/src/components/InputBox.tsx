@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
-import './InputBox.css';
 
 interface InputBoxProps {
   onSend: (message: string) => void;
@@ -74,11 +73,11 @@ export const InputBox: React.FC<InputBoxProps> = ({ onSend, onClear, disabled })
   }, [disabled]);
 
   return (
-    <div className="input-box">
-      <div className="input-wrapper">
+    <div className="flex flex-col gap-2 p-3 bg-[var(--vscode-sideBar-background)] border-t border-[var(--vscode-panel-border)]">
+      <div className="flex flex-col gap-2">
         <textarea
           ref={textareaRef}
-          className="input-textarea"
+          className="w-full min-h-[40px] max-h-[200px] px-3 py-2.5 border border-[var(--vscode-input-border)] rounded bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] leading-normal resize-none overflow-y-auto outline-none transition-all placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)] focus:shadow-[0_0_0_1px_var(--vscode-focusBorder)] disabled:opacity-60 disabled:cursor-not-allowed"
           placeholder="Type your message... (Ctrl+Enter to send)"
           value={inputValue}
           onChange={handleInput}
@@ -87,10 +86,10 @@ export const InputBox: React.FC<InputBoxProps> = ({ onSend, onClear, disabled })
           rows={1}
         />
         
-        <div className="input-actions">
+        <div className="flex gap-2 justify-end items-center max-[400px]:flex-col max-[400px]:items-stretch">
           {onClear && (
             <button
-              className="clear-button"
+              className="flex items-center gap-1 px-3 py-2 border-none rounded bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] cursor-pointer transition-colors hover:bg-[var(--vscode-button-secondaryHoverBackground)] disabled:opacity-50 disabled:cursor-not-allowed max-[400px]:w-full max-[400px]:justify-center"
               onClick={onClear}
               disabled={disabled}
               title="Clear conversation"
@@ -101,20 +100,20 @@ export const InputBox: React.FC<InputBoxProps> = ({ onSend, onClear, disabled })
           )}
           
           <button
-            className="send-button"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 border-none rounded bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] font-medium cursor-pointer transition-all whitespace-nowrap min-w-[90px] hover:bg-[var(--vscode-button-hoverBackground)] active:translate-y-px disabled:opacity-70 disabled:cursor-not-allowed max-[400px]:w-full"
             onClick={handleSend}
             disabled={disabled || !inputValue.trim()}
             title="Send message (Ctrl+Enter)"
             aria-label="Send message"
           >
             {disabled ? (
-              <span className="loading-indicator">
-                <span className="spinner"></span>
+              <span className="flex items-center gap-2">
+                <span className="inline-block w-3.5 h-3.5 border-2 border-[var(--vscode-button-foreground)] border-t-transparent rounded-full animate-spin"></span>
                 Processing...
               </span>
             ) : (
               <>
-                <span className="send-icon">📤</span>
+                <span className="text-base">📤</span>
                 Send
               </>
             )}
@@ -123,8 +122,8 @@ export const InputBox: React.FC<InputBoxProps> = ({ onSend, onClear, disabled })
       </div>
       
       {disabled && (
-        <div className="status-indicator">
-          <span className="status-dot"></span>
+        <div className="flex items-center gap-2 px-2 py-1 text-xs text-[var(--vscode-descriptionForeground)] bg-[var(--vscode-badge-background)] rounded self-start">
+          <span className="inline-block w-2 h-2 bg-[var(--vscode-charts-blue)] rounded-full animate-pulse"></span>
           AI is thinking...
         </div>
       )}

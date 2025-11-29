@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import type { OperationRecord } from '../types';
-import './OperationHistory.css';
 
 interface OperationHistoryProps {
   vscode: any;
@@ -36,10 +35,8 @@ export const OperationHistory: React.FC<OperationHistoryProps> = ({ vscode }) =>
   }, [vscode]);
 
   const handleClearHistory = () => {
-    if (window.confirm('Are you sure you want to clear the operation history?')) {
       vscode.postMessage({ type: 'clear_operation_history' });
       setSelectedOperation(null);
-    }
   };
 
   const handleOperationClick = (operation: OperationRecord) => {
@@ -87,9 +84,9 @@ export const OperationHistory: React.FC<OperationHistoryProps> = ({ vscode }) =>
 
   if (!isExpanded) {
     return (
-      <div className="operation-history-collapsed">
+      <div className="p-2 border-b border-[var(--vscode-panel-border)]">
         <button 
-          className="operation-history-toggle"
+          className="bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] border-none px-3 py-1.5 rounded cursor-pointer text-[13px] transition-colors hover:bg-[var(--vscode-button-secondaryHoverBackground)]"
           onClick={() => setIsExpanded(true)}
           title="Show operation history"
         >
@@ -100,12 +97,14 @@ export const OperationHistory: React.FC<OperationHistoryProps> = ({ vscode }) =>
   }
 
   return (
-    <div className="operation-history">
-      <div className="operation-history-header">
-        <h3>Operation History</h3>
-        <div className="operation-history-actions">
+    <div className="bg-[var(--vscode-sideBar-background)] border-b border-[var(--vscode-panel-border)] max-h-[400px] flex flex-col">
+      <div className="flex justify-between items-center p-3 border-b border-[var(--vscode-panel-border)] bg-[var(--vscode-sideBarSectionHeader-background)]">
+        <h3 className="m-0 text-sm font-semibold text-[var(--vscode-sideBarTitle-foreground)]">
+          Operation History
+        </h3>
+        <div className="flex gap-2">
           <button 
-            className="operation-history-clear"
+            className="bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] border-none px-2.5 py-1 rounded cursor-pointer text-xs transition-colors hover:bg-[var(--vscode-button-secondaryHoverBackground)] disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleClearHistory}
             disabled={operations.length === 0}
             title="Clear history"
@@ -113,7 +112,7 @@ export const OperationHistory: React.FC<OperationHistoryProps> = ({ vscode }) =>
             Clear
           </button>
           <button 
-            className="operation-history-toggle"
+            className="bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] border-none px-3 py-1.5 rounded cursor-pointer text-[13px] transition-colors hover:bg-[var(--vscode-button-secondaryHoverBackground)]"
             onClick={() => setIsExpanded(false)}
             title="Hide operation history"
           >
@@ -123,64 +122,90 @@ export const OperationHistory: React.FC<OperationHistoryProps> = ({ vscode }) =>
       </div>
 
       {operations.length === 0 ? (
-        <div className="operation-history-empty">
-          <p>No operations recorded yet.</p>
-          <p className="operation-history-hint">
+        <div className="p-6 text-center text-[var(--vscode-descriptionForeground)]">
+          <p className="my-2 text-[13px]">No operations recorded yet.</p>
+          <p className="my-2 text-xs opacity-80">
             File operations performed by the AI will appear here.
           </p>
         </div>
       ) : (
-        <div className="operation-history-list">
+        <div className="overflow-y-auto flex-1 p-2">
           {operations.slice().reverse().map((operation) => (
             <div 
               key={operation.id}
-              className={`operation-item ${selectedOperation?.id === operation.id ? 'selected' : ''}`}
+              className={`bg-[var(--vscode-editor-background)] border border-[var(--vscode-panel-border)] rounded p-2.5 mb-2 cursor-pointer transition-all hover:bg-[var(--vscode-list-hoverBackground)] hover:border-[var(--vscode-focusBorder)] ${
+                selectedOperation?.id === operation.id ? 'bg-[var(--vscode-list-activeSelectionBackground)] border-[var(--vscode-focusBorder)]' : ''
+              }`}
               onClick={() => handleOperationClick(operation)}
             >
-              <div className="operation-item-header">
-                <span className="operation-icon">{getOperationIcon(operation.type)}</span>
-                <span className="operation-type">{getOperationTypeLabel(operation.type)}</span>
-                <span className="operation-target">{operation.target}</span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-base flex-shrink-0">{getOperationIcon(operation.type)}</span>
+                <span className="font-semibold text-xs text-[var(--vscode-textLink-foreground)] uppercase flex-shrink-0">
+                  {getOperationTypeLabel(operation.type)}
+                </span>
+                <span className="text-[13px] text-[var(--vscode-editor-foreground)] overflow-hidden text-ellipsis whitespace-nowrap flex-1">
+                  {operation.target}
+                </span>
               </div>
               
-              <div className="operation-item-meta">
-                <span className="operation-time">{formatTimestamp(operation.timestamp)}</span>
-                <span className="operation-tool">{operation.toolName}</span>
+              <div className="flex justify-between items-center text-[11px] text-[var(--vscode-descriptionForeground)] gap-3">
+                <span className="flex-shrink-0">{formatTimestamp(operation.timestamp)}</span>
+                <span className="bg-[var(--vscode-badge-background)] text-[var(--vscode-badge-foreground)] px-1.5 py-0.5 rounded text-[10px]">
+                  {operation.toolName}
+                </span>
               </div>
 
               {selectedOperation?.id === operation.id && (
-                <div className="operation-item-details">
-                  <p className="operation-description">{operation.description}</p>
+                <div className="mt-3 pt-3 border-t border-[var(--vscode-panel-border)]">
+                  <p className="m-0 mb-3 text-[13px] text-[var(--vscode-editor-foreground)]">
+                    {operation.description}
+                  </p>
                   
                   {operation.details && (
-                    <div className="operation-details">
+                    <div className="bg-[var(--vscode-textCodeBlock-background)] rounded p-2.5 mb-3">
                       {operation.details.linesAdded !== undefined && (
-                        <div className="operation-detail">
-                          <strong>Lines added:</strong> {operation.details.linesAdded}
+                        <div className="mb-2 text-xs last:mb-0">
+                          <strong className="text-[var(--vscode-textPreformat-foreground)] mr-1.5">
+                            Lines added:
+                          </strong> {operation.details.linesAdded}
                         </div>
                       )}
                       {operation.details.linesRemoved !== undefined && (
-                        <div className="operation-detail">
-                          <strong>Lines removed:</strong> {operation.details.linesRemoved}
+                        <div className="mb-2 text-xs last:mb-0">
+                          <strong className="text-[var(--vscode-textPreformat-foreground)] mr-1.5">
+                            Lines removed:
+                          </strong> {operation.details.linesRemoved}
                         </div>
                       )}
                       {operation.details.contentPreview && (
-                        <div className="operation-detail">
-                          <strong>Preview:</strong>
-                          <pre className="operation-preview">{operation.details.contentPreview}</pre>
+                        <div className="mb-2 text-xs last:mb-0">
+                          <strong className="text-[var(--vscode-textPreformat-foreground)] mr-1.5">
+                            Preview:
+                          </strong>
+                          <pre className="mt-1.5 mx-0 mb-0 p-2 bg-[var(--vscode-editor-background)] rounded text-[11px] overflow-x-auto whitespace-pre-wrap break-all">
+                            {operation.details.contentPreview}
+                          </pre>
                         </div>
                       )}
                       {operation.details.command && (
-                        <div className="operation-detail">
-                          <strong>Command:</strong>
-                          <code>{operation.details.command}</code>
+                        <div className="mb-2 text-xs last:mb-0">
+                          <strong className="text-[var(--vscode-textPreformat-foreground)] mr-1.5">
+                            Command:
+                          </strong>
+                          <code className="bg-[var(--vscode-editor-background)] px-1.5 py-0.5 rounded text-[11px]">
+                            {operation.details.command}
+                          </code>
                         </div>
                       )}
                     </div>
                   )}
 
-                  <div className="operation-undo-hint">
-                    💡 Use <kbd>Ctrl+Z</kbd> (or <kbd>Cmd+Z</kbd> on Mac) in the editor to undo changes
+                  <div className="bg-[var(--vscode-inputValidation-infoBackground)] border-l-[3px] border-l-[var(--vscode-inputValidation-infoBorder)] px-2.5 py-2 rounded text-xs text-[var(--vscode-editor-foreground)] flex items-center gap-1.5">
+                    💡 Use <kbd className="bg-[var(--vscode-keybindingLabel-background)] border border-[var(--vscode-keybindingLabel-border)] text-[var(--vscode-keybindingLabel-foreground)] px-1.5 py-0.5 rounded text-[11px] font-semibold">
+                      Ctrl+Z
+                    </kbd> (or <kbd className="bg-[var(--vscode-keybindingLabel-background)] border border-[var(--vscode-keybindingLabel-border)] text-[var(--vscode-keybindingLabel-foreground)] px-1.5 py-0.5 rounded text-[11px] font-semibold">
+                      Cmd+Z
+                    </kbd> on Mac) in the editor to undo changes
                   </div>
                 </div>
               )}

@@ -1,13 +1,25 @@
-/* Import theme fallbacks first */
+@import "tailwindcss";
+
+/* Import theme fallbacks */
 @import './theme-fallbacks.css';
+
+/* Custom animation for test result fade-in */
+@keyframes test-result-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 :root {
   font-family: var(--vscode-font-family);
   line-height: 1.5;
   font-weight: 400;
-  
   color-scheme: light dark;
-  
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -15,8 +27,6 @@
 }
 
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
 }
 
@@ -24,6 +34,10 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-sideBar-background);
 }
 
 #root {
@@ -43,7 +57,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--vscode-scrollbarSlider-background);
-  border-radius: 5px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {

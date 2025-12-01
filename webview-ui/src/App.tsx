@@ -107,17 +107,25 @@ function App() {
    * Requirements: 14.1, 14.2
    */
   const handleToolCall = (toolCall: ToolUse) => {
-    setCurrentAssistantMessage((prev) => {
-      if (prev) {
-        // Add tool call to current message
-        return {
-          ...prev,
-          toolCalls: [...(prev.toolCalls || []), toolCall],
-          isStreaming: false,
-        };
-      }
-      return prev;
-    });
+    // Finalize current assistant message if it has content (reasoning)
+    if (currentAssistantMessage && currentAssistantMessage.content) {
+      setMessages((prev) => [
+        ...prev,
+        { ...currentAssistantMessage, isStreaming: false },
+      ]);
+      setCurrentAssistantMessage(null);
+    }
+
+    // Add tool call to messages, will be updated with result later
+    const toolCallMessage: DisplayMessage = {
+      id: `tool-${Date.now()}`,
+      role: "system",
+      content: "",
+      timestamp: new Date(),
+      toolCalls: [toolCall],
+    };
+
+    setMessages((prev) => [...prev, toolCallMessage]);
   };
 
   /**
@@ -125,16 +133,30 @@ function App() {
    * Requirements: 14.1, 14.3
    */
   const handleToolResult = (result: ToolResult) => {
-    // Create a system message for the tool result
-    const resultMessage: DisplayMessage = {
-      id: `msg-${Date.now()}`,
-      role: "system",
-      content: "",
-      timestamp: new Date(),
-      toolResults: [result],
-    };
+    // Find the last tool call message and add the result to it
+    setMessages((prev) => {
+      const lastToolCallIndex = prev.findIndex(
+        (msg) => msg.toolCalls && msg.toolCalls.some(tc => tc.name === result.tool_name) && !msg.toolResults
+      );
 
-    setMessages((prev) => [...prev, resultMessage]);
+      if (lastToolCallIndex >= 0) {
+        const newMessages = [...prev];
+        newMessages[lastToolCallIndex] = {
+          ...newMessages[lastToolCallIndex],
+          toolResults: [result],
+        };
+        return newMessages;
+      }
+
+      // Fallback: create new message if no matching tool call found
+      return [...prev, {
+        id: `result-${Date.now()}`,
+        role: "system",
+        content: "",
+        timestamp: new Date(),
+        toolResults: [result],
+      }];
+    });
   };
 
   /**

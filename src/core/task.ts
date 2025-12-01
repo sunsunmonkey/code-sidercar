@@ -83,33 +83,39 @@ export class Task {
     try {
       // Load conversation history if available (Requirement 4.3)
       if (this.conversationHistoryManager) {
-        const previousMessages = this.conversationHistoryManager.getTruncatedMessages();
+        const previousMessages =
+          this.conversationHistoryManager.getTruncatedMessages();
         this.history = [...previousMessages];
-        console.log(`[Task ${this.id}] Loaded ${previousMessages.length} messages from history`);
+        console.log(
+          `[Task ${this.id}] Loaded ${previousMessages.length} messages from history`
+        );
       }
-      
+
       // Collect context before starting (Requirement 8.1)
       console.log(`[Task ${this.id}] Collecting project context...`);
       this.context = await this.contextCollector.collectContext();
-      
+
       // Format user message with context (Requirement 8.1, 8.4)
       const messageWithContext = this.formatUserMessageWithContext(
         this.message,
         this.context
       );
-      
-      const userMessage: HistoryItem = { role: "user", content: messageWithContext };
+
+      const userMessage: HistoryItem = {
+        role: "user",
+        content: messageWithContext,
+      };
       this.history.push(userMessage);
-      
+
       // Save user message to history (Requirement 4.3)
       if (this.conversationHistoryManager) {
         this.conversationHistoryManager.addMessage(userMessage);
       }
-      
+
       await this.recursivelyMakeRequest(this.history);
     } catch (error) {
       // Handle errors at the top level (Requirements 12.1, 12.2, 12.3, 12.4, 12.5)
-      this.handleTaskError(error, 'task_start');
+      this.handleTaskError(error, "task_start");
     }
   }
 
@@ -122,18 +128,18 @@ export class Task {
     context: ProjectContext
   ): string {
     const parts: string[] = [];
-    
+
     // Add user message first
     parts.push("# User Request");
     parts.push(message);
-    
+
     // Add context information
     const contextStr = this.contextCollector.formatContext(context);
     if (contextStr) {
       parts.push("\n# Project Context");
       parts.push(contextStr);
     }
-    
+
     return parts.join("\n");
   }
 
@@ -157,7 +163,6 @@ export class Task {
 
       const apiHandler = new ApiHandler(this.apiConfiguration);
       const systemPrompt = await this.getSystemPrompt();
-
       // Stream LLM response (Requirement 6.1)
       const stream = apiHandler.createMessage(systemPrompt, history);
 
@@ -167,17 +172,25 @@ export class Task {
         this.provider.postMessageToWebview({
           type: "stream_chunk",
           content: chunk,
+          isStreaming: true,
         });
       }
-
+      this.provider.postMessageToWebview({
+        type: "stream_chunk",
+        content: "",
+        isStreaming: false,
+      });
       console.log(
         `[Task ${this.id}] Loop ${this.loopCount}: Assistant response received`
       );
 
       // Add assistant message to history
-      const assistantHistoryItem: HistoryItem = { role: "assistant", content: assistantMessage };
+      const assistantHistoryItem: HistoryItem = {
+        role: "assistant",
+        content: assistantMessage,
+      };
       this.history.push(assistantHistoryItem);
-      
+
       // Save assistant message to history (Requirement 4.3)
       if (this.conversationHistoryManager) {
         this.conversationHistoryManager.addMessage(assistantHistoryItem);
@@ -219,9 +232,12 @@ export class Task {
       // Add tool results to history as user messages (Requirement 6.3, 6.4, 4.3)
       for (const result of toolResults) {
         const resultMessage = this.formatToolResult(result);
-        const toolResultHistoryItem: HistoryItem = { role: "user", content: resultMessage };
+        const toolResultHistoryItem: HistoryItem = {
+          role: "user",
+          content: resultMessage,
+        };
         this.history.push(toolResultHistoryItem);
-        
+
         // Save tool result to history (Requirement 4.3)
         if (this.conversationHistoryManager) {
           this.conversationHistoryManager.addMessage(toolResultHistoryItem);
@@ -443,7 +459,10 @@ export class Task {
    * Handle task errors with error handler
    * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5
    */
-  private async handleTaskError(error: unknown, operation: string): Promise<void> {
+  private async handleTaskError(
+    error: unknown,
+    operation: string
+  ): Promise<void> {
     const errorContext: ErrorContext = {
       operation,
       timestamp: new Date(),
@@ -465,20 +484,23 @@ export class Task {
 
     // Attempt recovery if error is retryable (Requirement 12.4, 12.5)
     if (errorResponse.shouldRetry) {
-      const canRecover = await this.errorHandler.attemptRecovery(error, errorContext);
-      
+      const canRecover = await this.errorHandler.attemptRecovery(
+        error,
+        errorContext
+      );
+
       if (canRecover) {
         console.log(`[Task ${this.id}] Attempting recovery for ${operation}`);
-        
+
         // For network errors, retry the request
         if (this.errorHandler.isRetryable(error)) {
           // Wait a bit before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
           // Retry the request
           try {
             await this.recursivelyMakeRequest(this.history);
-            
+
             // Reset retry attempts on success
             this.errorHandler.resetRetryAttempts(operation);
             return;

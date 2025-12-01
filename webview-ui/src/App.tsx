@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability */
 import { useEffect, useState, useCallback } from "react";
 import { MessageList } from "./components/MessageList";
 import { InputBox } from "./components/InputBox";
@@ -10,7 +11,7 @@ import type {
   ToolUse,
   ToolResult,
   WorkMode,
-} from "./types";
+} from "./types/messages";
 import { vscode } from "./utils/vscode";
 
 type Tab = "chat" | "config";
@@ -32,10 +33,10 @@ function App() {
    */
   const handleExtensionMessage = useCallback((event: MessageEvent) => {
     const message: WebviewMessage = event.data;
-
+    console.log("=====all=====", message);
     switch (message.type) {
       case "stream_chunk":
-        handleStreamChunk(message.content);
+        handleStreamChunk(message.content, message.isStreaming);
         break;
 
       case "tool_call":
@@ -74,20 +75,16 @@ function App() {
     }
   }, []);
 
-  /**
-   * Handle streaming text chunks from LLM
-   * Requirement 4.1: Display streaming output in real-time
-   */
-  const handleStreamChunk = (content: string) => {
+  const handleStreamChunk = (content: string, isStreaming: boolean) => {
     setIsProcessing(true);
 
     setCurrentAssistantMessage((prev) => {
-      if (prev) {
+      if (prev && prev.isStreaming) {
         // Append to existing message
         return {
           ...prev,
           content: prev.content + content,
-          isStreaming: true,
+          isStreaming,
         };
       } else {
         // Create new assistant message
@@ -96,7 +93,7 @@ function App() {
           role: "assistant",
           content: content,
           timestamp: new Date(),
-          isStreaming: true,
+          isStreaming,
         };
       }
     });
@@ -136,7 +133,10 @@ function App() {
     // Find the last tool call message and add the result to it
     setMessages((prev) => {
       const lastToolCallIndex = prev.findIndex(
-        (msg) => msg.toolCalls && msg.toolCalls.some(tc => tc.name === result.tool_name) && !msg.toolResults
+        (msg) =>
+          msg.toolCalls &&
+          msg.toolCalls.some((tc) => tc.name === result.tool_name) &&
+          !msg.toolResults
       );
 
       if (lastToolCallIndex >= 0) {
@@ -149,13 +149,16 @@ function App() {
       }
 
       // Fallback: create new message if no matching tool call found
-      return [...prev, {
-        id: `result-${Date.now()}`,
-        role: "system",
-        content: "",
-        timestamp: new Date(),
-        toolResults: [result],
-      }];
+      return [
+        ...prev,
+        {
+          id: `result-${Date.now()}`,
+          role: "system",
+          content: "",
+          timestamp: new Date(),
+          toolResults: [result],
+        },
+      ];
     });
   };
 

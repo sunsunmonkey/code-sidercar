@@ -14,10 +14,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "coding-agent-slim.helloWorld",
-        "title": "Hello World"
-      },
-      {
         "command": "coding-agent-slim.configureApi",
         "title": "Coding Agent: Configure API"
       },

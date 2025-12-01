@@ -3,7 +3,7 @@
  * These types define the structure of configuration data used in the configuration panel
  */
 
-import type { WorkMode } from '../types';
+import type { WorkMode } from "./messages";
 
 /**
  * UI Configuration interface

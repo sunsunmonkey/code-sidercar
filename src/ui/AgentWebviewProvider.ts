@@ -30,7 +30,7 @@ import { ErrorHandler } from "../managers/ErrorHandler";
  * Message types sent to webview
  */
 export type WebviewMessage =
-  | { type: "stream_chunk"; content: string }
+  | { type: "stream_chunk"; content: string; isStreaming: boolean }
   | { type: "tool_call"; toolCall: ToolUse }
   | { type: "tool_result"; result: ToolResult }
   | { type: "error"; message: string }

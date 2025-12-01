@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { Message } from './Message';
-import type { DisplayMessage } from '../types';
+import React, { useEffect, useRef } from "react";
+import { Message } from "./Message";
+import type { DisplayMessage } from "../types/messages";
 
 interface MessageListProps {
   messages: DisplayMessage[];
@@ -18,7 +18,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
   // Requirement 4.2: Keep interface scrolled to latest content
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
 
@@ -30,14 +30,19 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
           <h3 className="m-0 mb-2 text-[var(--vscode-foreground)] text-lg font-semibold">
             No messages yet
           </h3>
-          <p className="m-0 text-sm">Start a conversation by typing a message below</p>
+          <p className="m-0 text-sm">
+            Start a conversation by typing a message below
+          </p>
         </div>
       </div>
     );
   }
-
+  console.log(messages);
   return (
-    <div className="flex-1 overflow-y-auto p-4 flex flex-col" ref={containerRef}>
+    <div
+      className="flex-1 overflow-y-auto p-4 flex flex-col"
+      ref={containerRef}
+    >
       {messages.map((message) => (
         <Message key={message.id} message={message} />
       ))}

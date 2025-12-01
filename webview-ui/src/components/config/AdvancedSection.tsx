@@ -1,6 +1,6 @@
-import React from 'react';
-import { Input } from '../common/Input';
-import type { WorkMode } from '../../types';
+import React from "react";
+import { Input } from "../common/Input";
+import type { WorkMode } from "../../types/messages";
 
 export interface AdvancedSectionProps {
   advanced: {
@@ -21,20 +21,20 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
   errors = {},
 }) => {
   const handleModeChange = (value: string) => {
-    onChange('defaultMode', value as WorkMode);
+    onChange("defaultMode", value as WorkMode);
   };
 
   const handleMaxLoopCountChange = (value: string) => {
     const numValue = parseInt(value, 10);
     if (!isNaN(numValue)) {
-      onChange('maxLoopCount', numValue);
+      onChange("maxLoopCount", numValue);
     }
   };
 
   const handleContextWindowSizeChange = (value: string) => {
     const numValue = parseInt(value, 10);
     if (!isNaN(numValue)) {
-      onChange('contextWindowSize', numValue);
+      onChange("contextWindowSize", numValue);
     }
   };
 
@@ -44,7 +44,9 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
         Advanced Settings
       </h2>
       <div className="flex flex-col gap-1.5 mb-4">
-        <label className="text-[13px] font-medium text-[var(--vscode-foreground)] select-none">Default Mode</label>
+        <label className="text-[13px] font-medium text-[var(--vscode-foreground)] select-none">
+          Default Mode
+        </label>
         <select
           value={advanced.defaultMode}
           onChange={(e) => handleModeChange(e.target.value)}

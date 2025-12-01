@@ -3,6 +3,7 @@ import { MessageList } from "./components/MessageList";
 import { InputBox } from "./components/InputBox";
 import { ModeSelector } from "./components/ModeSelector";
 import { OperationHistory } from "./components/OperationHistory";
+import { ConfigPanel } from "./components/config/ConfigPanel";
 import type {
   DisplayMessage,
   WebviewMessage,
@@ -10,14 +11,16 @@ import type {
   ToolResult,
   WorkMode,
 } from "./types";
-import { useNavigate } from "react-router-dom";
 import { vscode } from "./utils/vscode";
+
+type Tab = "chat" | "config";
 
 /**
  * Main App component for the AI Coding Assistant webview
  * Requirements: 4.1, 4.2, 4.3, 9.3, 14.1, 14.2
  */
 function App() {
+  const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [currentAssistantMessage, setCurrentAssistantMessage] =
     useState<DisplayMessage | null>(null);
@@ -266,38 +269,49 @@ function App() {
     }
   }, [currentAssistantMessage]);
 
-  /**
-   * Navigate to config page
-   */
-  const navigate = useNavigate();
-
-  const navigateToConfig = () => {
-    navigate("/config");
-  };
-
   return (
-    <div className="flex flex-col h-screen w-full">
-      <div className="flex items-center justify-between gap-2 p-3 bg-[var(--vscode-sideBar-background)] border-b border-[var(--vscode-panel-border)] flex-shrink-0">
-        <ModeSelector
-          currentMode={currentMode}
-          onModeChange={handleModeChange}
-        />
-        <button
-          className="bg-transparent border border-[var(--vscode-button-border,transparent)] text-[var(--vscode-button-foreground)] px-2 py-1 cursor-pointer rounded-sm text-base transition-colors hover:bg-[var(--vscode-button-hoverBackground)]"
-          onClick={navigateToConfig}
-          title="Open Configuration"
-        >
-          ⚙️
-        </button>
+    <>
+      <div style={{ display: tab === "chat" ? "block" : "none" }}>
+        <div className="flex flex-col h-screen w-full">
+          <div className="flex items-center justify-between gap-2 p-3 bg-[var(--vscode-sideBar-background)] border-b border-[var(--vscode-panel-border)] flex-shrink-0">
+            <ModeSelector
+              currentMode={currentMode}
+              onModeChange={handleModeChange}
+            />
+            <button
+              className="bg-transparent border border-[var(--vscode-button-border,transparent)] text-[var(--vscode-button-foreground)] px-2 py-1 cursor-pointer rounded-sm text-base transition-colors hover:bg-[var(--vscode-button-hoverBackground)]"
+              onClick={() => setTab("config")}
+              title="Open Configuration"
+            >
+              ⚙️
+            </button>
+          </div>
+          <OperationHistory vscode={vscode} />
+          <MessageList messages={messages} />
+          <InputBox
+            onSend={sendMessage}
+            onClear={clearConversation}
+            disabled={isProcessing}
+          />
+        </div>
       </div>
-      <OperationHistory vscode={vscode} />
-      <MessageList messages={messages} />
-      <InputBox
-        onSend={sendMessage}
-        onClear={clearConversation}
-        disabled={isProcessing}
-      />
-    </div>
+
+      <div style={{ display: tab === "config" ? "block" : "none" }}>
+        <div className="flex flex-col h-screen w-full">
+          <div className="flex items-center gap-3 p-3 bg-[var(--vscode-sideBar-background)] border-b border-[var(--vscode-panel-border)] flex-shrink-0">
+            <button
+              className="bg-transparent border border-[var(--vscode-button-border,transparent)] text-[var(--vscode-button-foreground)] px-3 py-1 cursor-pointer rounded-sm text-sm transition-colors hover:bg-[var(--vscode-button-hoverBackground)]"
+              onClick={() => setTab("chat")}
+              title="Back to Chat"
+            >
+              ← Back
+            </button>
+            <h2 className="m-0 text-base font-semibold">Configuration</h2>
+          </div>
+          <ConfigPanel />
+        </div>
+      </div>
+    </>
   );
 }
 

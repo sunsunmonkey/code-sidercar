@@ -4,13 +4,17 @@ import type { DisplayMessage } from "../types/messages";
 
 interface MessageListProps {
   messages: DisplayMessage[];
+  onPermissionResponse?: (requestId: string, approved: boolean) => void;
 }
 
 /**
  * MessageList component displays all messages and auto-scrolls to the latest
  * Requirements: 4.1, 4.2, 9.3
  */
-export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
+export const MessageList: React.FC<MessageListProps> = ({
+  messages,
+  onPermissionResponse,
+}) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +48,11 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
       ref={containerRef}
     >
       {messages.map((message) => (
-        <Message key={message.id} message={message} />
+        <Message
+          key={message.id}
+          message={message}
+          onPermissionResponse={onPermissionResponse}
+        />
       ))}
       <div ref={messagesEndRef} />
     </div>

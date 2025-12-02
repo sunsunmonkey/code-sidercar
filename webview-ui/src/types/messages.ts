@@ -96,6 +96,17 @@ export type ConfigResponse =
   | { type: "validation_error"; errors: ValidationErrors };
 
 /**
+ * Permission request data
+ */
+export interface PermissionRequest {
+  id: string;
+  toolName: string;
+  operation: string;
+  target: string;
+  details: string;
+}
+
+/**
  * Messages sent from extension to webview
  */
 export type WebviewMessage =
@@ -108,7 +119,8 @@ export type WebviewMessage =
   | { type: "conversation_cleared" }
   | { type: "operation_recorded"; operation: OperationRecord }
   | { type: "operation_history"; operations: OperationRecord[] }
-  | { type: "navigate"; route: string };
+  | { type: "navigate"; route: string }
+  | { type: "permission_request"; request: PermissionRequest };
 
 /**
  * Messages sent from webview to extension
@@ -118,12 +130,13 @@ export type UserMessage =
   | { type: "mode_change"; mode: WorkMode }
   | { type: "clear_conversation" }
   | { type: "get_operation_history" }
-  | { type: "clear_operation_history" };
+  | { type: "clear_operation_history" }
+  | { type: "permission_response"; requestId: string; approved: boolean };
 
 /**
  * Display message types for UI
  */
-export type MessageRole = "user" | "assistant" | "system";
+export type MessageRole = "user" | "assistant" | "system" | "permission";
 
 export interface DisplayMessage {
   id: string;
@@ -134,4 +147,5 @@ export interface DisplayMessage {
   toolResults?: ToolResult[];
   isStreaming?: boolean;
   isError?: boolean;
+  permissionRequest?: PermissionRequest;
 }

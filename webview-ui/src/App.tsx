@@ -72,6 +72,11 @@ function App() {
         // Handle navigation request from extension
         window.location.hash = `#${message.route}`;
         break;
+
+      case "permission_request":
+        // Handle permission request from extension - add as message
+        handlePermissionRequest(message.request);
+        break;
     }
   }, []);
 
@@ -259,6 +264,46 @@ function App() {
   };
 
   /**
+   * Handle permission request - add as message
+   */
+  const handlePermissionRequest = (
+    request: import("./types/messages").PermissionRequest
+  ) => {
+    const permissionMessage: DisplayMessage = {
+      id: request.id,
+      role: "permission",
+      content: "",
+      timestamp: new Date(),
+      permissionRequest: request,
+    };
+
+    setMessages((prev) => [...prev, permissionMessage]);
+  };
+
+  /**
+   * Handle permission response
+   */
+  const handlePermissionResponse = (requestId: string, approved: boolean) => {
+    vscode.postMessage({
+      type: "permission_response",
+      requestId: requestId,
+      approved: approved,
+    });
+
+    // Update the message to show it's been responded to
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === requestId
+          ? {
+              ...msg,
+              content: approved ? "✅ Approved" : "❌ Denied",
+            }
+          : msg
+      )
+    );
+  };
+
+  /**
    * Set up message listener
    */
   useEffect(() => {
@@ -312,7 +357,10 @@ function App() {
             </button>
           </div>
           <OperationHistory vscode={vscode} />
-          <MessageList messages={messages} />
+          <MessageList
+            messages={messages}
+            onPermissionResponse={handlePermissionResponse}
+          />
           <InputBox
             onSend={sendMessage}
             onClear={clearConversation}

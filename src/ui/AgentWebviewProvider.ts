@@ -27,6 +27,17 @@ import {
 import { ErrorHandler } from "../managers/ErrorHandler";
 
 /**
+ * Permission request interface
+ */
+export interface PermissionRequest {
+  id: string;
+  toolName: string;
+  operation: string;
+  target: string;
+  details: string;
+}
+
+/**
  * Message types sent to webview
  */
 export type WebviewMessage =
@@ -50,7 +61,8 @@ export type WebviewMessage =
     }
   | { type: "configuration_exported"; data: string; filename: string }
   | { type: "configuration_imported"; success: boolean; error?: string }
-  | { type: "validation_error"; errors: Record<string, string> };
+  | { type: "validation_error"; errors: Record<string, string> }
+  | { type: "permission_request"; request: PermissionRequest };
 
 /**
  * Message types received from webview
@@ -66,7 +78,8 @@ export type UserMessage =
   | { type: "test_connection"; apiConfig: any }
   | { type: "export_configuration" }
   | { type: "import_configuration"; data: string }
-  | { type: "reset_to_defaults" };
+  | { type: "reset_to_defaults" }
+  | { type: "permission_response"; requestId: string; approved: boolean };
 
 /**
  * Agent Webview Provider manages the sidebar panel and task execution
@@ -95,6 +108,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
 
     // Initialize permission manager
     this.permissionManager = new PermissionManager();
+    this.permissionManager.setWebviewProvider(this);
 
     // Initialize operation history manager
     this.operationHistoryManager = new OperationHistoryManager(context);
@@ -301,6 +315,15 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
 
     if (message.type === "reset_to_defaults") {
       await this.handleResetToDefaults();
+      return;
+    }
+
+    // Handle permission response messages
+    if (message.type === "permission_response") {
+      this.permissionManager.handlePermissionResponse(
+        message.requestId,
+        message.approved
+      );
       return;
     }
 

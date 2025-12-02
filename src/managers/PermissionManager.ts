@@ -63,6 +63,9 @@ export interface PermissionRequest {
 export class PermissionManager {
   private settings: PermissionSettings;
 
+  private webviewProvider: any;
+  private pendingRequests: Map<string, (approved: boolean) => void> = new Map();
+
   constructor(settings?: Partial<PermissionSettings>) {
     // Default settings
     this.settings = {
@@ -72,6 +75,24 @@ export class PermissionManager {
       alwaysConfirm: ['delete', 'execute'], // Requirement 5.5: Always confirm dangerous operations
       ...settings,
     };
+  }
+
+  /**
+   * Set webview provider for permission requests
+   */
+  setWebviewProvider(provider: any): void {
+    this.webviewProvider = provider;
+  }
+
+  /**
+   * Handle permission response from webview
+   */
+  handlePermissionResponse(requestId: string, approved: boolean): void {
+    const resolver = this.pendingRequests.get(requestId);
+    if (resolver) {
+      resolver(approved);
+      this.pendingRequests.delete(requestId);
+    }
   }
 
   /**
@@ -128,10 +149,13 @@ export class PermissionManager {
    * @returns Promise<boolean> True if user approved
    */
   private async requestUserConfirmation(request: PermissionRequest): Promise<boolean> {
-    // Build confirmation message (Requirement 5.2: Include details)
-    const message = this.buildConfirmationMessage(request);
+    // If webview provider is available, use webview for confirmation
+    if (this.webviewProvider) {
+      return await this.requestWebviewConfirmation(request);
+    }
 
-    // Show warning message with options (Requirement 5.2)
+    // Fallback to VSCode modal dialog
+    const message = this.buildConfirmationMessage(request);
     const result = await vscode.window.showWarningMessage(
       message,
       { modal: true },
@@ -148,6 +172,38 @@ export class PermissionManager {
     }
 
     return approved;
+  }
+
+  /**
+   * Request confirmation through webview
+   */
+  private async requestWebviewConfirmation(request: PermissionRequest): Promise<boolean> {
+    const requestId = `perm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    const requestWithId = {
+      id: requestId,
+      ...request,
+    };
+
+    // Send permission request to webview
+    this.webviewProvider.postMessageToWebview({
+      type: 'permission_request',
+      request: requestWithId,
+    });
+
+    // Wait for response
+    return new Promise<boolean>((resolve) => {
+      this.pendingRequests.set(requestId, resolve);
+
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        if (this.pendingRequests.has(requestId)) {
+          this.pendingRequests.delete(requestId);
+          console.log(`[PermissionManager] Permission request ${requestId} timed out`);
+          resolve(false);
+        }
+      }, 5 * 60 * 1000);
+    });
   }
 
   /**

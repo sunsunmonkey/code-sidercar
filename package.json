@@ -12,16 +12,7 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "coding-agent-slim.configureApi",
-        "title": "Coding Agent: Configure API"
-      },
-      {
-        "command": "coding-agent-slim.openConfiguration",
-        "title": "Coding Agent: Open Configuration"
-      }
-    ],
+    "commands": [],
     "viewsContainers": {
       "activitybar": [
         {

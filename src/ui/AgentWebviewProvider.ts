@@ -88,6 +88,7 @@ export type UserMessage =
  * Agent Webview Provider manages the sidebar panel and task execution
  */
 export class AgentWebviewProvider implements vscode.WebviewViewProvider {
+  configurationManager: ConfigurationManager;
   private webview: vscode.Webview | undefined;
   private currentTask: Task | undefined = undefined;
   private toolExecutor: ToolExecutor;
@@ -95,7 +96,6 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   private promptBuilder: PromptBuilder;
   private permissionManager: PermissionManager;
   private contextCollector: ContextCollector;
-  private configurationManager: ConfigurationManager;
   private conversationHistoryManager: ConversationHistoryManager;
   private errorHandler: ErrorHandler;
   private apiConfiguration: ApiConfiguration = {
@@ -240,10 +240,6 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      // Set initial route to main page (default)
-      window.location.hash = '#/';
-    </script>
   </body>
 </html>
 `;
@@ -757,14 +753,6 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Get configuration manager
-   * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5
-   */
-  getConfigurationManager(): ConfigurationManager {
-    return this.configurationManager;
-  }
-
-  /**
    * Get conversation history manager
    * Requirements: 4.3, 4.4, 4.5
    */
@@ -778,16 +766,6 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
    */
   getErrorHandler(): ErrorHandler {
     return this.errorHandler;
-  }
-
-  /**
-   * Navigate to config page
-   */
-  navigateToConfig(): void {
-    this.postMessageToWebview({
-      type: "navigate",
-      route: "/config",
-    });
   }
 
   /**

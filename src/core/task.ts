@@ -59,7 +59,7 @@ export class Task {
     private provider: AgentWebviewProvider,
     private apiConfiguration: ApiConfiguration,
     private message: string,
-    toolExecutor?: ToolExecutor,
+    toolExecutor: ToolExecutor,
     promptBuilder?: PromptBuilder,
     contextCollector?: ContextCollector,
     conversationHistoryManager?: any,
@@ -68,7 +68,7 @@ export class Task {
     this.id = `task-${Date.now()}-${Math.random()
       .toString(36)
       .substring(2, 11)}`;
-    this.toolExecutor = toolExecutor || new ToolExecutor();
+    this.toolExecutor = toolExecutor;
     this.promptBuilder = promptBuilder;
     this.contextCollector = contextCollector || new ContextCollector();
     this.conversationHistoryManager = conversationHistoryManager;

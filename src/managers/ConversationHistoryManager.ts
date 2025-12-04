@@ -26,24 +26,22 @@ export interface HistoryConfig {
  */
 export class ConversationHistoryManager {
   private static readonly HISTORY_KEY = "codingAgent.conversationHistory";
-  private static readonly CURRENT_CONVERSATION_KEY = "codingAgent.currentConversation";
-  
+  private static readonly CURRENT_CONVERSATION_KEY =
+    "codingAgent.currentConversation";
+
   private currentConversation: ConversationEntry | null = null;
   private config: HistoryConfig;
 
-  constructor(
-    private context: vscode.ExtensionContext,
-    config?: Partial<HistoryConfig>
-  ) {
-    // Default configuration
+  constructor(private context: vscode.ExtensionContext) {
+    // TODO 删了 config
     this.config = {
-      maxTokens: config?.maxTokens ?? 100000,
-      maxMessages: config?.maxMessages ?? 100,
-      estimatedCharsPerToken: config?.estimatedCharsPerToken ?? 4,
+      maxTokens: 100000,
+      maxMessages: 100,
+      estimatedCharsPerToken: 4,
     };
-    
-    // Load current conversation on initialization
-    this.loadCurrentConversation();
+
+    // start new conversation
+    this.startNewConversation();
   }
 
   /**
@@ -56,9 +54,11 @@ export class ConversationHistoryManager {
       timestamp: new Date(),
       messages: [],
     };
-    
+
     this.saveCurrentConversation();
-    console.log(`[ConversationHistoryManager] Started new conversation: ${this.currentConversation.id}`);
+    console.log(
+      `[ConversationHistoryManager] Started new conversation: ${this.currentConversation.id}`
+    );
   }
 
   /**
@@ -95,7 +95,7 @@ export class ConversationHistoryManager {
     if (!this.currentConversation) {
       this.startNewConversation();
     }
-    
+
     return this.currentConversation!.messages;
   }
 
@@ -105,20 +105,22 @@ export class ConversationHistoryManager {
    */
   getTruncatedMessages(): HistoryItem[] {
     const messages = this.getMessages();
-    
+
     if (messages.length === 0) {
       return [];
     }
 
     // Calculate total estimated tokens
     const totalTokens = this.estimateTokens(messages);
-    
+
     if (totalTokens <= this.config.maxTokens) {
       return messages;
     }
 
-    console.log(`[ConversationHistoryManager] Truncating history: ${totalTokens} tokens > ${this.config.maxTokens} limit`);
-    
+    console.log(
+      `[ConversationHistoryManager] Truncating history: ${totalTokens} tokens > ${this.config.maxTokens} limit`
+    );
+
     // Truncate from the beginning, keeping recent messages
     return this.truncateMessages(messages);
   }
@@ -128,13 +130,16 @@ export class ConversationHistoryManager {
    * Requirement 4.5: Support clearing conversation
    */
   clearConversation(): void {
-    if (this.currentConversation && this.currentConversation.messages.length > 0) {
+    if (
+      this.currentConversation &&
+      this.currentConversation.messages.length > 0
+    ) {
       // Archive current conversation before clearing only if it has messages
       this.archiveConversation(this.currentConversation);
     }
-    
+
     this.startNewConversation();
-    console.log('[ConversationHistoryManager] Conversation cleared');
+    console.log("[ConversationHistoryManager] Conversation cleared");
   }
 
   /**
@@ -146,51 +151,31 @@ export class ConversationHistoryManager {
         ConversationHistoryManager.HISTORY_KEY,
         []
       );
-      
-      const filteredHistory = history.filter(c => c.id !== conversationId);
-      
+
+      const filteredHistory = history.filter((c) => c.id !== conversationId);
+
       if (filteredHistory.length === history.length) {
-        console.warn(`[ConversationHistoryManager] Conversation not found: ${conversationId}`);
+        console.warn(
+          `[ConversationHistoryManager] Conversation not found: ${conversationId}`
+        );
         return false;
       }
-      
+
       this.context.workspaceState.update(
         ConversationHistoryManager.HISTORY_KEY,
         filteredHistory
       );
-      
-      console.log(`[ConversationHistoryManager] Deleted conversation: ${conversationId}`);
+
+      console.log(
+        `[ConversationHistoryManager] Deleted conversation: ${conversationId}`
+      );
       return true;
     } catch (error) {
-      console.error('[ConversationHistoryManager] Failed to delete conversation:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Load current conversation from storage
-   * Requirement 4.3: Load and restore conversation history
-   */
-  private loadCurrentConversation(): void {
-    try {
-      const stored = this.context.workspaceState.get<ConversationEntry>(
-        ConversationHistoryManager.CURRENT_CONVERSATION_KEY
+      console.error(
+        "[ConversationHistoryManager] Failed to delete conversation:",
+        error
       );
-      
-      if (stored && stored.messages && stored.messages.length > 0) {
-        // Archive the old conversation if it has messages
-        this.archiveConversation({
-          ...stored,
-          timestamp: new Date(stored.timestamp),
-        });
-      }
-      
-      // Always start a new conversation on load
-      this.startNewConversation();
-      console.log('[ConversationHistoryManager] Started new conversation on initialization');
-    } catch (error) {
-      console.error('[ConversationHistoryManager] Failed to load conversation:', error);
-      this.startNewConversation();
+      return false;
     }
   }
 
@@ -209,7 +194,10 @@ export class ConversationHistoryManager {
         this.currentConversation
       );
     } catch (error) {
-      console.error('[ConversationHistoryManager] Failed to save conversation:', error);
+      console.error(
+        "[ConversationHistoryManager] Failed to save conversation:",
+        error
+      );
     }
   }
 
@@ -228,9 +216,9 @@ export class ConversationHistoryManager {
         ConversationHistoryManager.HISTORY_KEY,
         []
       );
-      
+
       // Check if conversation already exists in history
-      const existingIndex = history.findIndex(c => c.id === conversation.id);
+      const existingIndex = history.findIndex((c) => c.id === conversation.id);
       if (existingIndex >= 0) {
         // Update existing conversation
         history[existingIndex] = conversation;
@@ -238,18 +226,23 @@ export class ConversationHistoryManager {
         // Add to history
         history.push(conversation);
       }
-      
+
       // Keep only recent conversations (limit to 50)
       const recentHistory = history.slice(-50);
-      
+
       this.context.workspaceState.update(
         ConversationHistoryManager.HISTORY_KEY,
         recentHistory
       );
-      
-      console.log(`[ConversationHistoryManager] Archived conversation: ${conversation.id} with ${conversation.messages.length} messages`);
+
+      console.log(
+        `[ConversationHistoryManager] Archived conversation: ${conversation.id} with ${conversation.messages.length} messages`
+      );
     } catch (error) {
-      console.error('[ConversationHistoryManager] Failed to archive conversation:', error);
+      console.error(
+        "[ConversationHistoryManager] Failed to archive conversation:",
+        error
+      );
     }
   }
 
@@ -259,20 +252,24 @@ export class ConversationHistoryManager {
    */
   private estimateTokens(messages: HistoryItem[]): number {
     let totalChars = 0;
-    
+
     for (const message of messages) {
-      if (typeof message.content === 'string') {
+      if (typeof message.content === "string") {
         totalChars += message.content.length;
       } else if (Array.isArray(message.content)) {
         // Handle content arrays (e.g., with images)
         for (const part of message.content) {
-          if (typeof part === 'object' && 'text' in part && typeof part.text === 'string') {
+          if (
+            typeof part === "object" &&
+            "text" in part &&
+            typeof part.text === "string"
+          ) {
             totalChars += part.text.length;
           }
         }
       }
     }
-    
+
     // Estimate tokens (roughly 4 characters per token)
     return Math.ceil(totalChars / this.config.estimatedCharsPerToken);
   }
@@ -284,12 +281,12 @@ export class ConversationHistoryManager {
   private truncateMessages(messages: HistoryItem[]): HistoryItem[] {
     const result: HistoryItem[] = [];
     let currentTokens = 0;
-    
+
     // Start from the end (most recent messages)
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i];
       const messageTokens = this.estimateTokens([message]);
-      
+
       if (currentTokens + messageTokens <= this.config.maxTokens) {
         result.unshift(message);
         currentTokens += messageTokens;
@@ -298,16 +295,16 @@ export class ConversationHistoryManager {
         break;
       }
     }
-    
+
     // If we truncated, add a system message to indicate this
     if (result.length < messages.length) {
       const truncatedCount = messages.length - result.length;
       result.unshift({
-        role: 'system',
+        role: "system",
         content: `[Note: ${truncatedCount} earlier messages were truncated to fit within context limits]`,
       });
     }
-    
+
     return result;
   }
 
@@ -328,14 +325,17 @@ export class ConversationHistoryManager {
         ConversationHistoryManager.HISTORY_KEY,
         []
       );
-      
+
       // Restore Date objects
-      return history.map(entry => ({
+      return history.map((entry) => ({
         ...entry,
         timestamp: new Date(entry.timestamp),
       }));
     } catch (error) {
-      console.error('[ConversationHistoryManager] Failed to get conversation history:', error);
+      console.error(
+        "[ConversationHistoryManager] Failed to get conversation history:",
+        error
+      );
       return [];
     }
   }
@@ -347,26 +347,33 @@ export class ConversationHistoryManager {
   restoreConversation(conversationId: string): boolean {
     try {
       const history = this.getConversationHistory();
-      const conversation = history.find(c => c.id === conversationId);
-      
+      const conversation = history.find((c) => c.id === conversationId);
+
       if (conversation) {
         // Archive current conversation if it exists
         if (this.currentConversation) {
           this.archiveConversation(this.currentConversation);
         }
-        
+
         // Restore the selected conversation
         this.currentConversation = conversation;
         this.saveCurrentConversation();
-        
-        console.log(`[ConversationHistoryManager] Restored conversation: ${conversationId}`);
+
+        console.log(
+          `[ConversationHistoryManager] Restored conversation: ${conversationId}`
+        );
         return true;
       }
-      
-      console.warn(`[ConversationHistoryManager] Conversation not found: ${conversationId}`);
+
+      console.warn(
+        `[ConversationHistoryManager] Conversation not found: ${conversationId}`
+      );
       return false;
     } catch (error) {
-      console.error('[ConversationHistoryManager] Failed to restore conversation:', error);
+      console.error(
+        "[ConversationHistoryManager] Failed to restore conversation:",
+        error
+      );
       return false;
     }
   }
@@ -393,6 +400,9 @@ export class ConversationHistoryManager {
       ...this.config,
       ...config,
     };
-    console.log('[ConversationHistoryManager] Configuration updated:', this.config);
+    console.log(
+      "[ConversationHistoryManager] Configuration updated:",
+      this.config
+    );
   }
 }

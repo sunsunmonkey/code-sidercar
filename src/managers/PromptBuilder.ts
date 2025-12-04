@@ -12,7 +12,6 @@ export class PromptBuilder {
   constructor(
     private modeManager: ModeManager,
     private toolExecutor: ToolExecutor,
-    private context: vscode.ExtensionContext
   ) {}
 
   /**
@@ -137,8 +136,7 @@ Tool uses are formatted using XML-style tags. The tool name itself becomes the X
     return `# Context Information
 
 **Operating System**: ${os.platform()} (${os.arch()})
-**Workspace**: ${workspacePath}
-**VSCode Version**: ${vscode.version}`;
+**Workspace**: ${workspacePath}`;
   }
 
   /**

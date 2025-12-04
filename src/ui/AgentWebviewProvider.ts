@@ -116,18 +116,15 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
     this.errorHandler = new ErrorHandler();
 
     // Initialize tool executor and register default tools
-    this.toolExecutor = new ToolExecutor();
-    this.toolExecutor.setPermissionManager(this.permissionManager);
-    this.toolExecutor.setErrorHandler(this.errorHandler);
+    this.toolExecutor = new ToolExecutor(
+      this.permissionManager,
+      this.errorHandler
+    );
     this.registerDefaultTools();
 
     // Initialize mode manager and prompt builder
     this.modeManager = new ModeManager();
-    this.promptBuilder = new PromptBuilder(
-      this.modeManager,
-      this.toolExecutor,
-      this.context
-    );
+    this.promptBuilder = new PromptBuilder(this.modeManager, this.toolExecutor);
 
     // Initialize context collector
     this.contextCollector = new ContextCollector();

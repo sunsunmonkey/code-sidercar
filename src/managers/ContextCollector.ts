@@ -127,7 +127,6 @@ export class ContextCollector {
 
   /**
    * Collect context for a specific file
-   * Requirements: 8.2, 8.5
    */
   async collectFileContext(filePath: string): Promise<string> {
     try {
@@ -164,7 +163,6 @@ export class ContextCollector {
 
   /**
    * Collect diagnostic information
-   * Requirements: 8.1
    */
   async collectDiagnostics(): Promise<DiagnosticInfo[]> {
     const diagnostics: DiagnosticInfo[] = [];
@@ -197,7 +195,6 @@ export class ContextCollector {
 
   /**
    * Collect project file tree
-   * Requirements: 8.1, 8.3
    */
   async collectFileTree(): Promise<FileNode[]> {
     try {
@@ -223,7 +220,6 @@ export class ContextCollector {
 
   /**
    * Build file tree recursively
-   * Requirements: 8.1, 8.3
    */
   private async buildFileTree(
     uri: vscode.Uri,
@@ -353,7 +349,6 @@ export class ContextCollector {
 
   /**
    * Format context as string for inclusion in messages
-   * Requirements: 8.3, 8.4
    */
   formatContext(context: ProjectContext): string {
     const parts: string[] = [];
@@ -450,7 +445,6 @@ export class ContextCollector {
 
   /**
    * Truncate context intelligently to fit size limit
-   * Requirements: 8.3
    */
   truncateContext(context: ProjectContext): ProjectContext {
     const truncated = { ...context };

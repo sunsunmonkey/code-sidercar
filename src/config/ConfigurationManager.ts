@@ -91,7 +91,7 @@ export class ConfigurationManager {
   private static readonly CONFIG_SECTION = "codingAgent";
   private static readonly API_KEY_SECRET = "codingAgent.apiKey";
 
-  // Cache for configuration to reduce redundant reads 
+  // Cache for configuration to reduce redundant reads
   private configCache: PluginConfiguration | null = null;
   private cacheTimestamp: number = 0;
   private readonly CACHE_TTL = 5000; // 5 seconds cache TTL
@@ -479,8 +479,8 @@ export class ConfigurationManager {
         baseUrl: config.api.baseUrl,
         model: config.api.model,
         apiKey: config.api.apiKey,
-        temperature: config.api.temperature,
-        maxTokens: config.api.maxTokens,
+        temperature: config.api.temperature || 0,
+        maxTokens: config.api.maxTokens || 0,
       },
       permissions: {
         allowReadByDefault: config.permissions.allowReadByDefault,
@@ -643,8 +643,8 @@ export class ConfigurationManager {
       api: {
         baseUrl: config.api.baseUrl,
         model: config.api.model,
-        temperature: config.api.temperature,
-        maxTokens: config.api.maxTokens,
+        temperature: config.api.temperature || 0,
+        maxTokens: config.api.maxTokens || 0,
         // API key is intentionally excluded for security (Requirement 5.3)
       },
       permissions: {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { MessageList } from "./components/MessageList";
 import { InputBox } from "./components/InputBox";
 import { ModeSelector } from "./components/ModeSelector";
@@ -23,8 +23,6 @@ type Tab = "chat" | "config";
 function App() {
   const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessage] = useState<DisplayMessage[]>([]);
-  const [currentAssistantMessage, setCurrentAssistantMessage] =
-    useState<DisplayMessage | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentMode, setCurrentMode] = useState<WorkMode>("code");
 
@@ -90,17 +88,20 @@ function App() {
   const handleStreamChunk = (content: string, isStreaming: boolean) => {
     setIsProcessing(true);
 
-    setCurrentAssistantMessage((prev) => {
-      if (prev && prev.isStreaming) {
+    setMessages((prev) => {
+      let lastMessage = prev[prev.length - 1];
+      if (lastMessage && lastMessage.isStreaming) {
+        // remove last
+        prev.pop();
         // Append to existing message
-        return {
-          ...prev,
-          content: prev.content + content,
+        lastMessage = {
+          ...lastMessage,
+          content: lastMessage.content + content,
           isStreaming,
         };
       } else {
         // Create new assistant message
-        return {
+        lastMessage = {
           id: `msg-${Date.now()}`,
           role: "assistant",
           content: content,
@@ -108,6 +109,8 @@ function App() {
           isStreaming,
         };
       }
+
+      return [...prev, lastMessage];
     });
   };
 
@@ -115,15 +118,6 @@ function App() {
    * Handle tool call from assistant
    */
   const handleToolCall = (toolCall: ToolUse) => {
-    // Finalize current assistant message if it has content (reasoning)
-    if (currentAssistantMessage && currentAssistantMessage.content) {
-      setMessages((prev) => [
-        ...prev,
-        { ...currentAssistantMessage, isStreaming: false },
-      ]);
-      setCurrentAssistantMessage(null);
-    }
-
     // Add tool call to messages, will be updated with result later
     const toolCallMessage: DisplayMessage = {
       id: `tool-${Date.now()}`,
@@ -192,15 +186,6 @@ function App() {
    * Handle task completion
    */
   const handleTaskComplete = () => {
-    // Finalize current assistant message if exists
-    if (currentAssistantMessage) {
-      setMessages((prev) => [
-        ...prev,
-        { ...currentAssistantMessage, isStreaming: false },
-      ]);
-      setCurrentAssistantMessage(null);
-    }
-
     setIsProcessing(false);
   };
 
@@ -243,7 +228,6 @@ function App() {
    */
   const handleConversationCleared = () => {
     setMessages([]);
-    setCurrentAssistantMessage(null);
     setIsProcessing(false);
     console.log("Conversation cleared");
   };
@@ -260,7 +244,6 @@ function App() {
       timestamp: new Date(msg.timestamp),
     }));
 
-    console.log(convertedMessages);
     setMessages(convertedMessages);
   };
 
@@ -322,30 +305,6 @@ function App() {
    * Set up message listener and load conversation history
    */
   useEvent("message", handleExtensionMessage);
-
-  /**
-   * Update messages when current assistant message changes
-   */
-  useEffect(() => {
-    if (currentAssistantMessage) {
-      setMessages((prev) => {
-        // Check if this message is already in the list
-        const existingIndex = prev.findIndex(
-          (msg) => msg.id === currentAssistantMessage.id
-        );
-
-        if (existingIndex >= 0) {
-          // Update existing message
-          const newMessages = [...prev];
-          newMessages[existingIndex] = currentAssistantMessage;
-          return newMessages;
-        } else {
-          // Add new message
-          return [...prev, currentAssistantMessage];
-        }
-      });
-    }
-  }, [currentAssistantMessage]);
 
   return (
     <>

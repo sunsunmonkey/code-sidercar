@@ -22,11 +22,16 @@ type Tab = "chat" | "config";
  */
 function App() {
   const [tab, setTab] = useState<Tab>("chat");
-  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const [messages, setMessage] = useState<DisplayMessage[]>([]);
   const [currentAssistantMessage, setCurrentAssistantMessage] =
     useState<DisplayMessage | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentMode, setCurrentMode] = useState<WorkMode>("code");
+
+  const setMessages = (msg: React.SetStateAction<DisplayMessage[]>) => {
+    console.log(msg);
+    setMessage(msg);
+  };
   /**
    * Handle messages from the extension
    */
@@ -42,7 +47,7 @@ function App() {
         break;
 
       case "tool_result":
-        handleToolResult(message.result);
+        handleToolResult(message.content);
         break;
 
       case "error":
@@ -67,11 +72,6 @@ function App() {
       case "conversation_history":
         // Handle conversation history loaded from extension
         handleConversationHistoryLoaded(message.messages);
-        break;
-
-      case "conversation_switched":
-        // Conversation switched successfully
-        console.log("Switched to conversation:", message.conversationId);
         break;
 
       case "navigate":
@@ -259,9 +259,8 @@ function App() {
       ...msg,
       timestamp: new Date(msg.timestamp),
     }));
-
+    console.log(convertedMessages);
     setMessages(convertedMessages);
-    console.log(`Loaded ${convertedMessages.length} messages from history`);
   };
 
   /**

@@ -1,4 +1,5 @@
 import { OpenAI } from "openai";
+import { ToolResult } from "./task";
 
 /**
  * API configuration for LLM service
@@ -14,7 +15,13 @@ export type ApiConfiguration = {
 /**
  * Message history item
  */
-export type HistoryItem = OpenAI.Chat.Completions.ChatCompletionMessageParam;
+export type HistoryItem = {
+  role: string;
+  content: string | ToolResult;
+};
+
+export type OpenAIHistoryItem =
+  OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
 /**
  * API Handler for communicating with LLM service
@@ -29,7 +36,7 @@ export class ApiHandler {
    * @returns AsyncGenerator yielding message chunks
    * @throws Error if API call fails (Requirements 12.1, 12.4)
    */
-  async *createMessage(systemPrompt: string, messages: HistoryItem[]) {
+  async *createMessage(systemPrompt: string, messages: OpenAIHistoryItem) {
     try {
       const client = new OpenAI({
         baseURL: this.apiConfiguration.baseUrl,

@@ -1,4 +1,9 @@
-import { ApiConfiguration, ApiHandler, HistoryItem } from "./apiHandler";
+import {
+  ApiConfiguration,
+  ApiHandler,
+  HistoryItem,
+  OpenAIHistoryItem,
+} from "./apiHandler";
 import { AgentWebviewProvider } from "../ui/AgentWebviewProvider";
 import { ToolExecutor } from "../tools";
 import { PromptBuilder } from "../managers/PromptBuilder";
@@ -99,9 +104,12 @@ export class Task {
       this.history.push(userMessage);
 
       // Save user message to history
-      // TODO 这块的 history 和 展示的
+      // TODO 这块的 history 和 展示的, 思考vscode workspace context
       if (this.conversationHistoryManager) {
-        this.conversationHistoryManager.addMessage(userMessage);
+        this.conversationHistoryManager.addMessage({
+          role: "user",
+          content: this.message,
+        });
       }
 
       await this.recursivelyMakeRequest(this.history);
@@ -113,7 +121,6 @@ export class Task {
 
   /**
    * Format user message with context information
-   * Requirements: 8.1, 8.3, 8.4
    */
   private formatUserMessageWithContext(
     message: string,
@@ -155,8 +162,24 @@ export class Task {
 
       const apiHandler = new ApiHandler(this.apiConfiguration);
       const systemPrompt = await this.getSystemPrompt();
+
+      history = history.map((item) => {
+        if (item.role === "role_result") {
+          const content = this.formatToolResult(item.content as ToolResult);
+          return {
+            role: "user",
+            content,
+          };
+        } else {
+          return item;
+        }
+      });
+
       // Stream LLM response
-      const stream = apiHandler.createMessage(systemPrompt, history);
+      const stream = apiHandler.createMessage(
+        systemPrompt,
+        history as OpenAIHistoryItem
+      );
 
       let assistantMessage = "";
       for await (const chunk of stream) {
@@ -186,6 +209,11 @@ export class Task {
       };
 
       this.history.push(assistantHistoryItem);
+      console.log("🚀 ~ Task ~ recursivelyMakeRequest ~ assistantHistoryItem:", assistantHistoryItem)
+      console.log(
+        "🚀 ~ Task ~ recursivelyMakeRequest ~ assistantHistoryItem:",
+        assistantHistoryItem
+      );
 
       // Save assistant message to history
       if (this.conversationHistoryManager) {
@@ -227,22 +255,23 @@ export class Task {
 
       // Add tool results to history as user messages
       for (const result of toolResults) {
-        const resultMessage = this.formatToolResult(result);
-        const toolResultHistoryItem: HistoryItem = {
-          role: "user",
-          content: resultMessage,
-        };
-        this.history.push(toolResultHistoryItem);
-
-        // Save tool result to history
-        if (this.conversationHistoryManager) {
-          this.conversationHistoryManager.addMessage(toolResultHistoryItem);
-        }
+        this.history.push({
+          role: "tool_result",
+          content: result,
+        });
 
         this.provider.postMessageToWebview({
           type: "tool_result",
-          result: result,
+          content: result,
         });
+
+        // Save tool result to history
+        if (this.conversationHistoryManager) {
+          this.conversationHistoryManager.addMessage({
+            role: "tool_result",
+            content: result,
+          });
+        }
       }
 
       // If attempt_completion was called, end the ReAct loop

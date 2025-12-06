@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { Task, ToolUse, ToolResult } from "../core/task";
-import { ApiConfiguration } from "../core/apiHandler";
+import { ApiConfiguration, HistoryItem } from "../core/apiHandler";
 import {
   ToolExecutor,
   AttemptCompletionTool,
@@ -39,14 +39,13 @@ export interface PermissionRequest {
 export type WebviewMessage =
   | { type: "stream_chunk"; content: string; isStreaming: boolean }
   | { type: "tool_call"; toolCall: ToolUse }
-  | { type: "tool_result"; result: ToolResult }
+  | { type: "tool_result"; content: ToolResult }
   | { type: "error"; message: string }
   | { type: "task_complete" }
   | { type: "mode_changed"; mode: WorkMode }
   | { type: "conversation_cleared" }
   | { type: "conversation_history"; messages: any[] }
   | { type: "conversation_list"; conversations: any[] }
-  | { type: "conversation_switched"; conversationId: string }
   | { type: "conversation_deleted"; conversationId: string }
   | { type: "navigate"; route: string }
   | { type: "configuration_loaded"; config: any; isFirstTime?: boolean }
@@ -429,40 +428,26 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       const messages = this.conversationHistoryManager.getMessages();
 
       // Convert HistoryItem[] to DisplayMessage format
-      const displayMessages = messages.map((msg: any, index: number) => {
-        let content = "";
-
-        // Handle different content types
-        if (typeof msg.content === "string") {
-          content = msg.content;
-        } else if (Array.isArray(msg.content)) {
-          // Handle content arrays (e.g., with images or tool results)
-          content = msg.content
-            .map((part: any) => {
-              if (typeof part === "string") {
-                return part;
-              }
-              if (part.type === "text") {
-                return part.text;
-              }
-              if (part.type === "tool_result") {
-                return `[Tool Result: ${part.tool_name}]`;
-              }
-              return JSON.stringify(part);
-            })
-            .join("\n");
-        } else {
-          content = JSON.stringify(msg.content);
+      const displayMessages = messages.map(
+        (msg: HistoryItem, index: number) => {
+          if (msg.role === "tool_result") {
+            return {
+              id: `result-${Date.now()}-${index}`,
+              role: "system",
+              content: "",
+              toolResults: [msg.content],
+              timestamp: new Date(),
+            };
+          }
+          return {
+            id: `msg-${Date.now()}-${index}`,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(),
+          };
         }
-
-        return {
-          id: `msg-${Date.now()}-${index}`,
-          role: msg.role,
-          content: content,
-          timestamp: new Date(),
-        };
-      });
-
+      );
+      console.log(displayMessages);
       // Send conversation history to webview
       this.postMessageToWebview({
         type: "conversation_history",
@@ -576,11 +561,6 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       if (success) {
         // Send the conversation messages to webview
         this.handleGetConversationHistory();
-
-        this.postMessageToWebview({
-          type: "conversation_switched",
-          conversationId: conversationId,
-        });
 
         console.log(
           `[AgentWebviewProvider] Switched to conversation: ${conversationId}`

@@ -123,7 +123,7 @@ export interface ConversationSummary {
 export type WebviewMessage =
   | { type: "stream_chunk"; content: string; isStreaming: boolean }
   | { type: "tool_call"; toolCall: ToolUse }
-  | { type: "tool_result"; result: ToolResult }
+  | { type: "tool_result"; content: ToolResult }
   | { type: "error"; message: string }
   | { type: "task_complete" }
   | { type: "mode_changed"; mode: WorkMode }
@@ -132,7 +132,6 @@ export type WebviewMessage =
   | { type: "operation_history"; operations: OperationRecord[] }
   | { type: "conversation_history"; messages: DisplayMessage[] }
   | { type: "conversation_list"; conversations: ConversationSummary[] }
-  | { type: "conversation_switched"; conversationId: string }
   | { type: "conversation_deleted"; conversationId: string }
   | { type: "navigate"; route: string }
   | { type: "permission_request"; request: PermissionRequest };

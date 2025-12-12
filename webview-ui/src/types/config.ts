@@ -23,7 +23,6 @@ export interface UIConfiguration {
     allowExecuteByDefault: boolean;
   };
   advanced: {
-    defaultMode: WorkMode;
     maxLoopCount: number;
     contextWindowSize: number;
   };

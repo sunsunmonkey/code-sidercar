@@ -151,7 +151,6 @@ Managed by `ConfigurationManager` (`src/config/ConfigurationManager.ts`). Settin
 - `codingAgent.permissions.alwaysConfirm` - Operations requiring confirmation
 
 **Agent Behavior:**
-- `codingAgent.defaultMode` - Default work mode
 - `codingAgent.maxLoopCount` - Max ReAct iterations
 - `codingAgent.contextWindowSize` - Max context chars
 

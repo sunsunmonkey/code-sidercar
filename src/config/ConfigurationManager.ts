@@ -17,10 +17,6 @@ export interface PluginConfiguration {
    */
   permissions: PermissionSettings;
 
-  /**
-   * Default work mode
-   */
-  defaultMode: WorkMode;
 
   /**
    * Maximum ReAct loop iterations
@@ -50,13 +46,10 @@ export interface UIConfiguration {
     allowExecuteByDefault: boolean;
   };
   advanced: {
-    defaultMode: WorkMode;
     maxLoopCount: number;
     contextWindowSize: number;
   };
 }
-
-
 
 /**
  * ConfigurationManager handles reading, saving, and validating plugin configuration
@@ -67,7 +60,24 @@ export class ConfigurationManager {
 
   constructor(private context: vscode.ExtensionContext) {}
 
+  /**
+   * Generic method to update multiple configuration keys
+   */
+  private async updateConfigKeys(
+    updates: Array<{ key: string; value: any }>
+  ): Promise<void> {
+    const config = vscode.workspace.getConfiguration(
+      ConfigurationManager.CONFIG_SECTION
+    );
 
+    await Promise.all(
+      updates
+        .filter(({ value }) => value !== undefined)
+        .map(({ key, value }) =>
+          config.update(key, value, vscode.ConfigurationTarget.Global)
+        )
+    );
+  }
 
   /**
    * Get complete plugin configuration
@@ -108,7 +118,7 @@ export class ConfigurationManager {
           "execute",
         ]),
       },
-      defaultMode: config.get<WorkMode>("defaultMode", "code"),
+
       maxLoopCount: config.get<number>("maxLoopCount", 25),
       contextWindowSize: config.get<number>("contextWindowSize", 100000),
     };
@@ -118,7 +128,6 @@ export class ConfigurationManager {
 
   /**
    * Get API key from secure storage
-   * Requirement: 10.2 - Use VSCode SecretStorage for API keys
    *
    * @returns Promise<string | undefined> API key or undefined if not set
    */
@@ -128,7 +137,6 @@ export class ConfigurationManager {
 
   /**
    * Store API key in secure storage
-   * Requirement: 10.2 - Use VSCode SecretStorage for API keys
    *
    * @param apiKey API key to store
    */
@@ -137,59 +145,24 @@ export class ConfigurationManager {
       ConfigurationManager.API_KEY_SECRET,
       apiKey
     );
-    console.log("[ConfigurationManager] API key stored securely");
-  }
-
-  /**
-   * Delete API key from secure storage
-   * Requirement: 10.2
-   */
-  async deleteApiKey(): Promise<void> {
-    await this.context.secrets.delete(ConfigurationManager.API_KEY_SECRET);
-    console.log("[ConfigurationManager] API key deleted");
   }
 
   /**
    * Update API configuration
-   * Requirements: 10.1, 10.4
-   *
    * @param apiConfig Partial API configuration to update
    */
   async updateApiConfiguration(
     apiConfig: Partial<ApiConfiguration>
   ): Promise<void> {
-    const config = vscode.workspace.getConfiguration(
-      ConfigurationManager.CONFIG_SECTION
-    );
+    // Batch update all API config fields except apiKey
+    await this.updateConfigKeys([
+      { key: "api.baseUrl", value: apiConfig.baseUrl },
+      { key: "api.model", value: apiConfig.model },
+      { key: "api.temperature", value: apiConfig.temperature },
+      { key: "api.maxTokens", value: apiConfig.maxTokens },
+    ]);
 
-    if (apiConfig.baseUrl !== undefined) {
-      await config.update(
-        "api.baseUrl",
-        apiConfig.baseUrl,
-        vscode.ConfigurationTarget.Global
-      );
-    }
-    if (apiConfig.model !== undefined) {
-      await config.update(
-        "api.model",
-        apiConfig.model,
-        vscode.ConfigurationTarget.Global
-      );
-    }
-    if (apiConfig.temperature !== undefined) {
-      await config.update(
-        "api.temperature",
-        apiConfig.temperature,
-        vscode.ConfigurationTarget.Global
-      );
-    }
-    if (apiConfig.maxTokens !== undefined) {
-      await config.update(
-        "api.maxTokens",
-        apiConfig.maxTokens,
-        vscode.ConfigurationTarget.Global
-      );
-    }
+    // Handle apiKey separately (secure storage)
     if (apiConfig.apiKey !== undefined) {
       await this.setApiKey(apiConfig.apiKey);
     }
@@ -206,75 +179,27 @@ export class ConfigurationManager {
   async updatePermissionSettings(
     permissions: Partial<PermissionSettings>
   ): Promise<void> {
-    const config = vscode.workspace.getConfiguration(
-      ConfigurationManager.CONFIG_SECTION
-    );
-
-    if (permissions.allowReadByDefault !== undefined) {
-      await config.update(
-        "permissions.allowReadByDefault",
-        permissions.allowReadByDefault,
-        vscode.ConfigurationTarget.Global
-      );
-    }
-    if (permissions.allowWriteByDefault !== undefined) {
-      await config.update(
-        "permissions.allowWriteByDefault",
-        permissions.allowWriteByDefault,
-        vscode.ConfigurationTarget.Global
-      );
-    }
-    if (permissions.allowExecuteByDefault !== undefined) {
-      await config.update(
-        "permissions.allowExecuteByDefault",
-        permissions.allowExecuteByDefault,
-        vscode.ConfigurationTarget.Global
-      );
-    }
-    if (permissions.alwaysConfirm !== undefined) {
-      await config.update(
-        "permissions.alwaysConfirm",
-        permissions.alwaysConfirm,
-        vscode.ConfigurationTarget.Global
-      );
-    }
+    await this.updateConfigKeys([
+      {
+        key: "permissions.allowReadByDefault",
+        value: permissions.allowReadByDefault,
+      },
+      {
+        key: "permissions.allowWriteByDefault",
+        value: permissions.allowWriteByDefault,
+      },
+      {
+        key: "permissions.allowExecuteByDefault",
+        value: permissions.allowExecuteByDefault,
+      },
+      { key: "permissions.alwaysConfirm", value: permissions.alwaysConfirm },
+    ]);
 
     console.log("[ConfigurationManager] Permission settings updated");
   }
 
   /**
-   * Update default mode
-   *
-   * @param mode Default work mode
-   */
-  async updateDefaultMode(mode: WorkMode): Promise<void> {
-    const config = vscode.workspace.getConfiguration(
-      ConfigurationManager.CONFIG_SECTION
-    );
-    await config.update("defaultMode", mode, vscode.ConfigurationTarget.Global);
-    console.log(`[ConfigurationManager] Default mode updated to: ${mode}`);
-  }
-
-  /**
-   * Update max loop count
-   *
-   * @param count Maximum loop count
-   */
-  async updateMaxLoopCount(count: number): Promise<void> {
-    const config = vscode.workspace.getConfiguration(
-      ConfigurationManager.CONFIG_SECTION
-    );
-    await config.update(
-      "maxLoopCount",
-      count,
-      vscode.ConfigurationTarget.Global
-    );
-    console.log(`[ConfigurationManager] Max loop count updated to: ${count}`);
-  }
-
-  /**
    * Validate API configuration
-   * Requirements: 10.3, 10.4 - Validate configuration and test API connection
    *
    * @param apiConfig API configuration to validate
    * @returns Promise<{ valid: boolean; error?: string }> Validation result
@@ -414,7 +339,6 @@ export class ConfigurationManager {
         allowExecuteByDefault: config.permissions.allowExecuteByDefault,
       },
       advanced: {
-        defaultMode: config.defaultMode,
         maxLoopCount: config.maxLoopCount,
         contextWindowSize: config.contextWindowSize,
       },
@@ -424,47 +348,30 @@ export class ConfigurationManager {
   /**
    * Update configuration with partial updates
    * Supports batch updates of multiple configuration sections
-   * Requirement: 2.1
    *
    * @param config Partial configuration to update
    */
   async updateConfiguration(
     config: Partial<PluginConfiguration>
   ): Promise<void> {
-    // Update API configuration if provided
+    const updatePromises: Promise<void>[] = [];
+
+    // Update simple fields
+    await this.updateConfigKeys([
+      { key: "maxLoopCount", value: config.maxLoopCount },
+      { key: "contextWindowSize", value: config.contextWindowSize },
+    ]);
+
+    // Handle complex objects separately
     if (config.api) {
-      await this.updateApiConfiguration(config.api);
+      updatePromises.push(this.updateApiConfiguration(config.api));
     }
 
-    // Update permissions if provided
     if (config.permissions) {
-      await this.updatePermissionSettings(config.permissions);
+      updatePromises.push(this.updatePermissionSettings(config.permissions));
     }
 
-    // Update default mode if provided
-    if (config.defaultMode !== undefined) {
-      await this.updateDefaultMode(config.defaultMode);
-    }
-
-    // Update max loop count if provided
-    if (config.maxLoopCount !== undefined) {
-      await this.updateMaxLoopCount(config.maxLoopCount);
-    }
-
-    // Update context window size if provided
-    if (config.contextWindowSize !== undefined) {
-      const vsConfig = vscode.workspace.getConfiguration(
-        ConfigurationManager.CONFIG_SECTION
-      );
-      await vsConfig.update(
-        "contextWindowSize",
-        config.contextWindowSize,
-        vscode.ConfigurationTarget.Global
-      );
-    }
-
+    await Promise.all(updatePromises);
     console.log("[ConfigurationManager] Configuration updated");
   }
-
-
 }

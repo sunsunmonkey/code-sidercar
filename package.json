@@ -83,17 +83,6 @@
           ],
           "description": "Operations that always require confirmation"
         },
-        "codingAgent.defaultMode": {
-          "type": "string",
-          "enum": [
-            "architect",
-            "code",
-            "ask",
-            "debug"
-          ],
-          "default": "code",
-          "description": "Default work mode for the agent"
-        },
         "codingAgent.maxLoopCount": {
           "type": "number",
           "default": 25,

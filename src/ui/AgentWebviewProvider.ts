@@ -148,8 +148,8 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       // Update permission settings
       this.permissionManager.updateSettings(config.permissions);
 
-      // Set default mode
-      this.modeManager.switchMode(config.defaultMode);
+      // Set default mode to 'code'
+      this.modeManager.switchMode("code");
 
       console.log("[AgentWebviewProvider] Configuration initialized");
 
@@ -743,7 +743,6 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       await this.configurationManager.updateConfiguration({
         api: config.api,
         permissions: config.permissions,
-        defaultMode: config.advanced.defaultMode,
         maxLoopCount: config.advanced.maxLoopCount,
         contextWindowSize: config.advanced.contextWindowSize,
       });

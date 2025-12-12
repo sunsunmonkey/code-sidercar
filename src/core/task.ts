@@ -105,13 +105,12 @@ export class Task {
 
       // Save user message to history
       // TODO 这块的 history 和 展示的, 思考vscode workspace context
-      if (this.conversationHistoryManager) {
-        this.conversationHistoryManager.addMessage({
-          role: "user",
-          content: this.message,
-        });
-      }
 
+      this.conversationHistoryManager.addMessage({
+        role: "user",
+        content: this.message,
+      });
+      console.log("save", this.message);
       await this.recursivelyMakeRequest(this.history);
     } catch (error) {
       // Handle errors at the top level
@@ -211,9 +210,7 @@ export class Task {
       this.history.push(assistantHistoryItem);
 
       // Save assistant message to history
-      if (this.conversationHistoryManager) {
-        this.conversationHistoryManager.addMessage(assistantHistoryItem);
-      }
+      this.conversationHistoryManager.addMessage(assistantHistoryItem);
 
       // Parse assistant message for tool calls
       const assistantContent = this.parseAssistantMessage(assistantMessage);

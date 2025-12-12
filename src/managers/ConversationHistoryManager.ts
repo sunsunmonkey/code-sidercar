@@ -25,8 +25,6 @@ export interface HistoryConfig {
  */
 export class ConversationHistoryManager {
   private static readonly HISTORY_KEY = "codingAgent.conversationHistory";
-  private static readonly CURRENT_CONVERSATION_KEY =
-    "codingAgent.currentConversation";
 
   private currentConversation: ConversationEntry | null = null;
 
@@ -136,9 +134,27 @@ export class ConversationHistoryManager {
       return;
     }
 
+    if (this.currentConversation.messages.length === 0) {
+      return;
+    }
+
+    const history = this.context.workspaceState.get<ConversationEntry[]>(
+      ConversationHistoryManager.HISTORY_KEY,
+      []
+    );
+
+    const historyIndex = history.findIndex(
+      (item) => item.id === this.currentConversation?.id
+    );
+    if (historyIndex >= 0) {
+      history[historyIndex] = this.currentConversation;
+    } else {
+      history.push(this.currentConversation);
+    }
+
     this.context.workspaceState.update(
-      ConversationHistoryManager.CURRENT_CONVERSATION_KEY,
-      this.currentConversation
+      ConversationHistoryManager.HISTORY_KEY,
+      history
     );
   }
 

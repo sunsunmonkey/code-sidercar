@@ -70,6 +70,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     setIsExpanded(!isExpanded);
   };
 
+  useEffect(() => {
+    vscode.postMessage({ type: "get_conversation_list" });
+  }, [vscode]);
+
   const formatDate = (timestamp: Date | string) => {
     const date = new Date(timestamp);
     const now = new Date();

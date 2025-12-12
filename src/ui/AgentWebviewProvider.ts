@@ -502,7 +502,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
         this.conversationHistoryManager.getConversationHistory();
       const currentId =
         this.conversationHistoryManager.getCurrentConversationId();
-
+      console.log(conversations);
       // Format conversations for display
       const formattedConversations = conversations.map((conv) => ({
         id: conv.id,
@@ -511,6 +511,11 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
         preview: this.getConversationPreview(conv.messages),
         isCurrent: conv.id === currentId,
       }));
+
+      console.log(
+        "🚀 ~ AgentWebviewProvider ~ handleGetConversationList ~ formattedConversations:",
+        formattedConversations
+      );
 
       // Sort by timestamp, newest first
       formattedConversations.sort(

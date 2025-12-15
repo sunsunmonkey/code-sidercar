@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Custom hook for managing configuration state
  * Handles configuration loading, saving, validation, and operations

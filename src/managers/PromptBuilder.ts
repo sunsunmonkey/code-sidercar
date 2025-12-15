@@ -6,17 +6,15 @@ import * as path from "path";
 
 /**
  * PromptBuilder dynamically constructs system prompts
- * Requirements: 6.1, 7.1, 13.1, 13.2
  */
 export class PromptBuilder {
   constructor(
     private modeManager: ModeManager,
-    private toolExecutor: ToolExecutor,
+    private toolExecutor: ToolExecutor
   ) {}
 
   /**
    * Build the complete system prompt
-   * Requirements: 6.1, 7.1, 13.1, 13.2
    */
   public buildSystemPrompt(): string {
     const sections: string[] = [];
@@ -42,6 +40,9 @@ export class PromptBuilder {
     // 7. Goal
     sections.push(this.getGoalSection());
 
+    // 8. Important
+    sections.push(this.getImportantSection());
+
     return sections.join("\n\n");
   }
 
@@ -63,18 +64,19 @@ You are an AI coding assistant integrated into Visual Studio Code. You help deve
    */
   private getToolDefinitionsSection(): string {
     const tools = this.toolExecutor.getToolDefinitions();
-    
+
     if (tools.length === 0) {
       return "# Available Tools\n\nNo tools are currently available.";
     }
 
     let section = "# Available Tools\n\n";
-    section += "You have access to the following tools to interact with the project:\n\n";
+    section +=
+      "You have access to the following tools to interact with the project:\n\n";
 
     for (const tool of tools) {
       section += `## ${tool.name}\n\n`;
       section += `${tool.description}\n\n`;
-      
+
       if (tool.parameters.length > 0) {
         section += "**Parameters:**\n\n";
         for (const param of tool.parameters) {
@@ -87,7 +89,7 @@ You are an AI coding assistant integrated into Visual Studio Code. You help deve
       section += "**Usage Example:**\n\n";
       section += "```xml\n";
       section += `<${tool.name}>\n`;
-      for (const param of tool.parameters.filter(p => p.required)) {
+      for (const param of tool.parameters.filter((p) => p.required)) {
         section += `<${param.name}>value</${param.name}>\n`;
       }
       section += `</${tool.name}>\n`;
@@ -129,9 +131,10 @@ Tool uses are formatted using XML-style tags. The tool name itself becomes the X
    */
   private getContextSection(): string {
     const workspaceFolders = vscode.workspace.workspaceFolders;
-    const workspacePath = workspaceFolders && workspaceFolders.length > 0
-      ? workspaceFolders[0].uri.fsPath
-      : "No workspace open";
+    const workspacePath =
+      workspaceFolders && workspaceFolders.length > 0
+        ? workspaceFolders[0].uri.fsPath
+        : "No workspace open";
 
     return `# Context Information
 
@@ -167,14 +170,16 @@ Your responses should be:
   private getRulesSection(): string {
     const mode = this.modeManager.getCurrentModeDefinition();
     const maxEdits = mode.maxFileEdits;
-    
+
     let editRestriction = "";
     if (maxEdits === 0) {
-      editRestriction = "- **File Editing**: Avoid making file changes unless explicitly requested";
+      editRestriction =
+        "- **File Editing**: Avoid making file changes unless explicitly requested";
     } else if (maxEdits !== undefined) {
       editRestriction = `- **File Editing**: Limit file modifications to ${maxEdits} files per task`;
     } else {
-      editRestriction = "- **File Editing**: You can modify files as needed for the task";
+      editRestriction =
+        "- **File Editing**: You can modify files as needed for the task";
     }
 
     return `# Rules and Guidelines
@@ -216,6 +221,22 @@ Your goal is to assist the developer effectively by:
 5. Providing clear explanations and results
 
 Always think step-by-step and use tools to accomplish tasks. When you've completed the task, use the appropriate completion tool to signal you're done.`;
+  }
+
+  /**
+   * Get Important section
+   */
+  private getImportantSection(): string {
+    return `# Important Instructions
+
+    
+1. Only analyze a project when the user explicitly requests analysis.
+   - Do NOT proactively analyze projects.
+   - Avoid overusing tools.
+   - Before using any tool, think carefully and ensure it is truly necessary.
+
+2. When finishing any response, you MUST always use the tool: \`attempt_completion\`.
+   - This applies to every final answer without exception.`;
   }
 
   /**

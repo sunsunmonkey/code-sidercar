@@ -1,12 +1,10 @@
 import * as vscode from "vscode";
 import { ApiConfiguration } from "../core/apiHandler";
 import { PermissionSettings } from "../managers/PermissionManager";
-import { WorkMode } from "../managers/ModeManager";
-
 /**
  * Complete plugin configuration
  */
-export interface PluginConfiguration {
+export interface ExtensionConfiguration {
   /**
    * API configuration
    */
@@ -16,7 +14,6 @@ export interface PluginConfiguration {
    * Permission settings
    */
   permissions: PermissionSettings;
-
 
   /**
    * Maximum ReAct loop iterations
@@ -82,9 +79,9 @@ export class ConfigurationManager {
   /**
    * Get complete plugin configuration
    *
-   * @returns Promise<PluginConfiguration> Complete configuration
+   * @returns Promise<ExtensionConfiguration> Complete configuration
    */
-  async getConfiguration(): Promise<PluginConfiguration> {
+  async getConfiguration(): Promise<ExtensionConfiguration> {
     const config = vscode.workspace.getConfiguration(
       ConfigurationManager.CONFIG_SECTION
     );
@@ -92,7 +89,7 @@ export class ConfigurationManager {
     // Get API key from secure storage (Requirement 10.2)
     const apiKey = await this.getApiKey();
 
-    const pluginConfig: PluginConfiguration = {
+    const pluginConfig: ExtensionConfiguration = {
       api: {
         baseUrl: config.get<string>("api.baseUrl", ""),
         model: config.get<string>("api.model", ""),
@@ -172,7 +169,6 @@ export class ConfigurationManager {
 
   /**
    * Update permission settings
-   * Requirement: 10.3
    *
    * @param permissions Partial permission settings to update
    */
@@ -264,7 +260,6 @@ export class ConfigurationManager {
 
   /**
    * Check if API is configured
-   * Requirement: 10.5 - Prompt user if not configured
    *
    * @returns Promise<boolean> True if API is configured
    */
@@ -306,7 +301,7 @@ export class ConfigurationManager {
    * @returns Disposable to stop listening
    */
   onConfigurationChanged(
-    callback: (config: PluginConfiguration) => void
+    callback: (config: ExtensionConfiguration) => void
   ): vscode.Disposable {
     return vscode.workspace.onDidChangeConfiguration(async (event) => {
       if (event.affectsConfiguration(ConfigurationManager.CONFIG_SECTION)) {
@@ -318,7 +313,6 @@ export class ConfigurationManager {
 
   /**
    * Get configuration formatted for UI display
-   * Requirement: 2.1
    *
    * @returns Promise<UIConfiguration> UI-friendly configuration
    */
@@ -352,7 +346,7 @@ export class ConfigurationManager {
    * @param config Partial configuration to update
    */
   async updateConfiguration(
-    config: Partial<PluginConfiguration>
+    config: Partial<ExtensionConfiguration>
   ): Promise<void> {
     const updatePromises: Promise<void>[] = [];
 

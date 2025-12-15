@@ -78,7 +78,6 @@ export type UserMessage =
   | { type: "get_configuration" }
   | { type: "save_configuration"; config: any }
   | { type: "test_connection"; apiConfig: any }
-
   | { type: "permission_response"; requestId: string; approved: boolean };
 
 /**
@@ -307,8 +306,6 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       await this.handleTestConnection(message.apiConfig);
       return;
     }
-
-
 
     // Handle permission response messages
     if (message.type === "permission_response") {
@@ -812,6 +809,4 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       );
     }
   }
-
-
 }

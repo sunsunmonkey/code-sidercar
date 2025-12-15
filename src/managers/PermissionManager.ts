@@ -2,18 +2,15 @@ import * as vscode from "vscode";
 
 /**
  * Permission settings for tool operations
- * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
  */
 export interface PermissionSettings {
   /**
    * Default allow read operations without confirmation
-   * Requirement: 5.3
    */
   allowReadByDefault: boolean;
 
   /**
    * Default allow write operations without confirmation
-   * Requirement: 5.4
    */
   allowWriteByDefault: boolean;
 
@@ -24,14 +21,12 @@ export interface PermissionSettings {
 
   /**
    * Operations that always require confirmation regardless of defaults
-   * Requirement: 5.5
    */
   alwaysConfirm: string[];
 }
 
 /**
  * Permission request details
- * Requirements: 5.1, 5.2
  */
 export interface PermissionRequest {
   /**
@@ -58,7 +53,6 @@ export interface PermissionRequest {
 
 /**
  * PermissionManager handles user authorization for tool operations
- * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
  */
 export class PermissionManager {
   private settings: PermissionSettings;
@@ -151,7 +145,6 @@ export class PermissionManager {
 
   /**
    * Request user confirmation for an operation
-   * Requirements: 5.2, 5.5
    *
    * @param request Permission request details
    * @returns Promise<boolean> True if user approved

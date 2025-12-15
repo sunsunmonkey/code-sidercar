@@ -59,7 +59,8 @@ export type WebviewMessage =
   | { type: "configuration_exported"; data: string; filename: string }
   | { type: "configuration_imported"; success: boolean; error?: string }
   | { type: "validation_error"; errors: Record<string, string> }
-  | { type: "permission_request"; request: PermissionRequest };
+  | { type: "permission_request"; request: PermissionRequest }
+  | { type: "set_input_text"; text: string };
 
 /**
  * Message types received from webview
@@ -812,5 +813,15 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
         `API connection test failed: ${errorMessage}`
       );
     }
+  }
+
+  /**
+   * Set input text in webview
+   */
+  setInputText(text: string): void {
+    this.postMessageToWebview({
+      type: "set_input_text",
+      text: text,
+    });
   }
 }

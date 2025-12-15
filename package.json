@@ -12,7 +12,22 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [],
+    "commands": [
+      {
+        "command": "coding-agent-slim.analyzeSelectedCode",
+        "title": "Coding Agent",
+        "category": "Coding Agent"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "coding-agent-slim.analyzeSelectedCode",
+          "when": "editorHasSelection",
+          "group": "navigation"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {

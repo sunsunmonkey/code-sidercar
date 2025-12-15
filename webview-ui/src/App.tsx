@@ -24,6 +24,7 @@ function App() {
   const [messages, setMessage] = useState<DisplayMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentMode, setCurrentMode] = useState<WorkMode>("code");
+  const [inputText, setInputText] = useState<string>("");
 
   const setMessages = (msg: React.SetStateAction<DisplayMessage[]>) => {
     console.log(msg);
@@ -79,6 +80,11 @@ function App() {
       case "permission_request":
         // Handle permission request from extension - add as message
         handlePermissionRequest(message.request);
+        break;
+
+      case "set_input_text":
+        // Handle setting input text from extension
+        setInputText((prev) => prev + message.text);
         break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -331,6 +337,8 @@ function App() {
             onSend={sendMessage}
             onClear={clearConversation}
             disabled={isProcessing}
+            inputValue={inputText}
+            setInputValue={setInputText}
           />
         </div>
       </div>

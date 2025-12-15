@@ -129,7 +129,8 @@ export type WebviewMessage =
   | { type: "conversation_list"; conversations: ConversationSummary[] }
   | { type: "conversation_deleted"; conversationId: string }
   | { type: "navigate"; route: string }
-  | { type: "permission_request"; request: PermissionRequest };
+  | { type: "permission_request"; request: PermissionRequest }
+  | { type: "set_input_text"; text: string };
 
 /**
  * Messages sent from webview to extension

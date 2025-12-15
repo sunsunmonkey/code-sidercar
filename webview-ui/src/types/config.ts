@@ -3,8 +3,6 @@
  * These types define the structure of configuration data used in the configuration panel
  */
 
-import type { WorkMode } from "./messages";
-
 /**
  * UI Configuration interface
  * Represents the complete configuration structure used in the configuration UI
@@ -27,8 +25,6 @@ export interface UIConfiguration {
     contextWindowSize: number;
   };
 }
-
-
 
 /**
  * Validation Errors interface

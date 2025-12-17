@@ -42,7 +42,6 @@ export interface ContextSnapshotItem {
   id: string;
   title: string;
   kind: ContextKind;
-  tokens: number;
   priority: number;
   pinned?: boolean;
   status: "included" | "truncated" | "dropped";
@@ -51,11 +50,7 @@ export interface ContextSnapshotItem {
 
 export interface ContextSnapshot {
   totalTokens: number;
-  budgetTokens: number;
-  inputBudget: number;
-  reservedOutputTokens: number;
-  systemPromptTokens: number;
-  userMessageTokens: number;
+  availableTokens: number;
   items: ContextSnapshotItem[];
 }
 
@@ -64,11 +59,7 @@ export interface BudgetedContext {
   droppedItems: ContextItem[];
   formattedContext: string;
   totalTokens: number;
-  budgetTokens: number;
-  inputBudget: number;
-  reservedOutputTokens: number;
-  systemPromptTokens: number;
-  userMessageTokens: number;
+  availableTokens: number;
   snapshot: ContextSnapshot;
 }
 
@@ -132,7 +123,6 @@ export class ContextCollector {
   private readonly MAX_FILE_SIZE = 50000; // Maximum single file size in characters
   private readonly MAX_FILES_IN_TREE = 500; // Maximum files to include in tree
   private readonly HEAD_TAIL_DEFAULT = { head: 120, tail: 80 };
-  private readonly FAST_TOKEN_RATIO = 4; // Roughly 4 chars per token fallback
 
   /**
    * Collect current project context
@@ -449,16 +439,6 @@ export class ContextCollector {
   }
 
   /**
-   * Fast token estimation (char/4 fallback)
-   */
-  estimateTokens(text: string): number {
-    if (!text) {
-      return 0;
-    }
-    return Math.ceil(text.length / this.FAST_TOKEN_RATIO) + 4;
-  }
-
-  /**
    * Build ContextItems from current project state plus parsed mentions
    */
   async collectContextItems(
@@ -486,7 +466,7 @@ export class ContextCollector {
       title: "System Environment",
       priority: 5,
       content: envContent,
-      tokenEstimate: this.estimateTokens(envContent),
+      tokenEstimate: 0,
       truncation: { mode: "none" },
     });
 
@@ -499,7 +479,7 @@ export class ContextCollector {
         title: `Current File: ${projectContext.activeFile.path}`,
         priority: 90,
         content: activeContent,
-        tokenEstimate: this.estimateTokens(activeContent),
+        tokenEstimate: 0,
         truncation: {
           mode: "head_tail",
           head: this.HEAD_TAIL_DEFAULT.head,
@@ -522,7 +502,7 @@ export class ContextCollector {
         title: `Selection (${projectContext.selection.startLine}-${projectContext.selection.endLine})`,
         priority: 95,
         content: selContent,
-        tokenEstimate: this.estimateTokens(selContent),
+        tokenEstimate: 0,
         truncation: { mode: "none" },
         sourceMeta: {
           startLine: projectContext.selection.startLine,
@@ -543,7 +523,7 @@ export class ContextCollector {
         title: `Cursor window (${startLine + 1}-${endLine + 1})`,
         priority: 85,
         content: nearby,
-        tokenEstimate: this.estimateTokens(nearby),
+        tokenEstimate: 0,
         truncation: { mode: "none" },
         sourceMeta: {
           startLine: startLine + 1,
@@ -559,13 +539,13 @@ export class ContextCollector {
       items.push({
         id: "diagnostics",
         kind: "diagnostics",
-        title: "Diagnostics (Problems)",
-        priority: 70,
-        content: diagContent,
-        tokenEstimate: this.estimateTokens(diagContent),
-        truncation: { mode: "tail", maxLines: 50 },
-        sourceMeta: { count: projectContext.diagnostics.length },
-      });
+      title: "Diagnostics (Problems)",
+      priority: 70,
+      content: diagContent,
+      tokenEstimate: 0,
+      truncation: { mode: "tail", maxLines: 50 },
+      sourceMeta: { count: projectContext.diagnostics.length },
+    });
     }
 
     // Open tabs (metadata only)
@@ -577,12 +557,12 @@ export class ContextCollector {
       items.push({
         id: "open-tabs",
         kind: "open_tabs",
-        title: "Open Tabs",
-        priority: 40,
-        content: openContent,
-        tokenEstimate: this.estimateTokens(openContent),
-        truncation: { mode: "head", maxLines: 40 },
-      });
+      title: "Open Tabs",
+      priority: 40,
+      content: openContent,
+      tokenEstimate: 0,
+      truncation: { mode: "head", maxLines: 40 },
+    });
     }
 
     // Workspace tree snapshot (low priority)
@@ -591,12 +571,12 @@ export class ContextCollector {
       items.push({
         id: "workspace-tree",
         kind: "workspace",
-        title: "Workspace Structure",
-        priority: 20,
-        content: treeContent,
-        tokenEstimate: this.estimateTokens(treeContent),
-        truncation: { mode: "head", maxLines: 120 },
-      });
+      title: "Workspace Structure",
+      priority: 20,
+      content: treeContent,
+      tokenEstimate: 0,
+      truncation: { mode: "head", maxLines: 120 },
+    });
     }
 
     // Mentions parsed from user message
@@ -627,7 +607,7 @@ export class ContextCollector {
         title: `@file ${filePath}`,
         priority: 85,
         content,
-        tokenEstimate: this.estimateTokens(content),
+        tokenEstimate: 0,
         truncation: {
           mode: "head_tail",
           head: this.HEAD_TAIL_DEFAULT.head,
@@ -655,7 +635,7 @@ export class ContextCollector {
         title: `@folder ${folderPath}`,
         priority: 60,
         content: treeText,
-        tokenEstimate: this.estimateTokens(treeText),
+        tokenEstimate: 0,
         truncation: { mode: "head", maxLines: 200 },
         sourceMeta: { path: absolutePath },
       });
@@ -671,7 +651,7 @@ export class ContextCollector {
         title: "@problems",
         priority: 75,
         content: diagContent,
-        tokenEstimate: this.estimateTokens(diagContent),
+        tokenEstimate: 0,
         truncation: { mode: "tail", maxLines: 50 },
         sourceMeta: { count: diagnostics.length },
         pinned: true,
@@ -687,7 +667,7 @@ export class ContextCollector {
         title: "@terminal",
         priority: 65,
         content: placeholder,
-        tokenEstimate: this.estimateTokens(placeholder),
+        tokenEstimate: 0,
         truncation: { mode: "none" },
         sourceMeta: { limited: true },
       });
@@ -704,69 +684,33 @@ export class ContextCollector {
   }
 
   /**
-   * Budget context items using a greedy strategy with truncation/drop fallback
+   * Prepare context items for prompt construction.
+   * Token accounting is deferred to the API usage callback.
    */
-  budgetContextItems(params: {
-    items: ContextItem[];
-    userMessage: string;
-    systemPrompt: string;
-    contextWindowTokens: number;
-    reservedOutputTokens?: number;
-  }): BudgetedContext {
-    const reservedOutputTokens =
-      params.reservedOutputTokens ??
-      Math.floor(params.contextWindowTokens * 0.2);
-    const budgetTokens = Math.max(
-      params.contextWindowTokens - reservedOutputTokens,
-      0
-    );
-    const systemPromptTokens = this.estimateTokens(params.systemPrompt);
-    const userMessageTokens = this.estimateTokens(params.userMessage);
-    const selected: ContextItem[] = [];
-    const dropped: ContextItem[] = [];
-
-    let usedTokens = systemPromptTokens + userMessageTokens;
-
-    const sortedItems = [...params.items].sort((a, b) => {
+  budgetContextItems(
+    items: ContextItem[],
+    availableTokens: number
+  ): BudgetedContext {
+    const sortedItems = [...items].sort((a, b) => {
       const pinnedDelta = (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
       if (pinnedDelta !== 0) {
         return pinnedDelta;
       }
       if (b.priority === a.priority) {
-        return b.tokenEstimate - a.tokenEstimate;
+        return a.id.localeCompare(b.id);
       }
       return b.priority - a.priority;
     });
 
-    for (const item of sortedItems) {
-      const remaining = budgetTokens - usedTokens;
-      if (remaining <= 0) {
-        dropped.push({ ...item, appliedTruncation: "dropped" });
-        continue;
-      }
-
-      let workingItem: ContextItem = { ...item };
-
-      if (workingItem.tokenEstimate > remaining) {
-        const truncated = this.truncateContent(
-          workingItem.content,
-          workingItem.truncation
-        );
-        workingItem = {
-          ...workingItem,
-          content: truncated.content,
-          tokenEstimate: this.estimateTokens(truncated.content),
-          appliedTruncation: truncated.note,
-        };
-      }
-
-      if (workingItem.tokenEstimate <= remaining || workingItem.pinned) {
-        selected.push(workingItem);
-        usedTokens += workingItem.tokenEstimate;
-      } else {
-        dropped.push({ ...workingItem, appliedTruncation: "dropped" });
-      }
-    }
+    const selected = sortedItems.map((item) => {
+      const truncated = this.truncateContent(item.content, item.truncation);
+      return {
+        ...item,
+        content: truncated.content,
+        appliedTruncation: truncated.note,
+        tokenEstimate: 0,
+      };
+    });
 
     const formattedContext = selected
       .map((item) => {
@@ -777,50 +721,27 @@ export class ContextCollector {
       })
       .join("\n\n");
 
-    const snapshotItems: ContextSnapshotItem[] = [
-      ...selected.map(
-        (item): ContextSnapshotItem => ({
-          id: item.id,
-          title: item.title,
-          kind: item.kind,
-          tokens: item.tokenEstimate,
-          priority: item.priority,
-          pinned: item.pinned,
-          status: item.appliedTruncation ? "truncated" : "included",
-          note: item.appliedTruncation,
-        })
-      ),
-      ...dropped.map(
-        (item): ContextSnapshotItem => ({
-          id: item.id,
-          title: item.title,
-          kind: item.kind,
-          tokens: item.tokenEstimate,
-          priority: item.priority,
-          pinned: item.pinned,
-          status: "dropped",
-          note: item.appliedTruncation,
-        })
-      ),
-    ];
+    const snapshotItems: ContextSnapshotItem[] = selected.map(
+      (item): ContextSnapshotItem => ({
+        id: item.id,
+        title: item.title,
+        kind: item.kind,
+        priority: item.priority,
+        pinned: item.pinned,
+        status: item.appliedTruncation ? "truncated" : "included",
+        note: item.appliedTruncation,
+      })
+    );
 
     return {
       selectedItems: selected,
-      droppedItems: dropped,
+      droppedItems: [],
       formattedContext,
-      totalTokens: usedTokens,
-      budgetTokens,
-      inputBudget: budgetTokens,
-      reservedOutputTokens,
-      systemPromptTokens,
-      userMessageTokens,
+      totalTokens: 0,
+      availableTokens,
       snapshot: {
-        totalTokens: usedTokens,
-        budgetTokens,
-        inputBudget: budgetTokens,
-        reservedOutputTokens,
-        systemPromptTokens,
-        userMessageTokens,
+        totalTokens: 0,
+        availableTokens,
         items: snapshotItems,
       },
     };
@@ -839,6 +760,9 @@ export class ContextCollector {
 
     const lines = content.split("\n");
     if (truncation.mode === "tail") {
+      if (lines.length <= truncation.maxLines) {
+        return { content };
+      }
       const tailLines = lines.slice(-truncation.maxLines);
       return {
         content: tailLines.join("\n"),
@@ -847,6 +771,9 @@ export class ContextCollector {
     }
 
     if (truncation.mode === "head") {
+      if (lines.length <= truncation.maxLines) {
+        return { content };
+      }
       const headLines = lines.slice(0, truncation.maxLines);
       return {
         content: headLines.join("\n"),
@@ -855,6 +782,9 @@ export class ContextCollector {
     }
 
     if (truncation.mode === "head_tail") {
+      if (lines.length <= truncation.head + truncation.tail) {
+        return { content };
+      }
       const headLines = lines.slice(0, truncation.head);
       const tailLines = lines.slice(-truncation.tail);
       return {
@@ -864,6 +794,11 @@ export class ContextCollector {
     }
 
     if (truncation.mode === "summarize") {
+      if (
+        lines.length <= this.HEAD_TAIL_DEFAULT.head + this.HEAD_TAIL_DEFAULT.tail
+      ) {
+        return { content };
+      }
       const headLines = lines.slice(0, this.HEAD_TAIL_DEFAULT.head);
       const tailLines = lines.slice(-this.HEAD_TAIL_DEFAULT.tail);
       return {

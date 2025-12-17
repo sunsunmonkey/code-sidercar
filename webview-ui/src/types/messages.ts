@@ -73,7 +73,6 @@ export interface ContextItemView {
   id: string;
   title: string;
   kind: ContextKind;
-  tokens: number;
   priority: number;
   pinned?: boolean;
   status: "included" | "truncated" | "dropped";
@@ -82,11 +81,7 @@ export interface ContextItemView {
 
 export interface ContextSnapshot {
   totalTokens: number;
-  budgetTokens: number;
-  inputBudget: number;
-  reservedOutputTokens: number;
-  systemPromptTokens: number;
-  userMessageTokens: number;
+  availableTokens: number;
   items: ContextItemView[];
 }
 

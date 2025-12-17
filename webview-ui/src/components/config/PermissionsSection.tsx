@@ -15,8 +15,8 @@ export const PermissionsSection: React.FC<PermissionsSectionProps> = ({
   onChange,
 }) => {
   return (
-    <section className="p-4 mb-4 border border-[var(--vscode-panel-border)] rounded bg-[var(--vscode-editor-background)] transition-all">
-      <h2 className="text-base font-semibold text-[var(--vscode-foreground)] m-0 mb-4 pb-2 border-b border-[var(--vscode-panel-border)]">
+    <section className="p-5 rounded-xl bg-[var(--vscode-editor-background)] shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition-all">
+      <h2 className="text-base font-semibold text-[var(--vscode-foreground)] m-0 mb-3">
         Permission Settings
       </h2>
       <Toggle

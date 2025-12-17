@@ -54,10 +54,10 @@ export const ApiConfigSection: React.FC<ApiConfigSectionProps> = ({
   };
 
   return (
-    <section className={`p-4 mb-4 border border-[var(--vscode-panel-border)] rounded bg-[var(--vscode-editor-background)] transition-all ${
-      isFirstTime ? 'border-2 border-[var(--vscode-textLink-foreground)] rounded-md p-[18px]' : ''
+    <section className={`p-5 rounded-xl bg-[var(--vscode-editor-background)] shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition-all ${
+      isFirstTime ? 'shadow-[0_14px_38px_rgba(60,158,255,0.22)]' : ''
     }`}>
-      <h2 className="text-base font-semibold text-[var(--vscode-foreground)] m-0 mb-4 pb-2 border-b border-[var(--vscode-panel-border)]">
+      <h2 className="text-base font-semibold text-[var(--vscode-foreground)] m-0 mb-3">
         API Settings {isFirstTime && <span className="text-xs text-[var(--vscode-errorForeground)] font-normal ml-2">*Required</span>}
       </h2>
       <Input

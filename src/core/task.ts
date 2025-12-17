@@ -67,7 +67,6 @@ export class Task {
   private errorHandler: ErrorHandler;
   private contextWindowTokens: number;
   private contextSnapshot?: ContextSnapshot;
-  private reservedOutputTokens: number = 0;
 
   constructor(
     private provider: AgentWebviewProvider,
@@ -90,7 +89,7 @@ export class Task {
     this.contextCollector = contextCollector;
     this.conversationHistoryManager = conversationHistoryManager;
     this.errorHandler = errorHandler;
-    this.contextWindowTokens = contextWindowTokens || 8000;
+    this.contextWindowTokens = contextWindowTokens || 0;
   }
 
   /**
@@ -108,14 +107,11 @@ export class Task {
         this.context
       );
 
-      const budgetedContext = this.contextCollector.budgetContextItems({
-        items: contextItems,
-        userMessage: this.message,
-        systemPrompt,
-        contextWindowTokens: this.contextWindowTokens,
-      });
+      const budgetedContext = this.contextCollector.budgetContextItems(
+        contextItems,
+        this.contextWindowTokens
+      );
       this.contextSnapshot = budgetedContext.snapshot;
-      this.reservedOutputTokens = budgetedContext.reservedOutputTokens;
 
       // Surface context usage to the webview for visibility
       this.provider.postMessageToWebview({
@@ -511,29 +507,17 @@ export class Task {
       return;
     }
 
-    const promptTokens = usage.promptTokens || usage.totalTokens;
-    if (!promptTokens) {
+    const totalTokens =
+      usage.totalTokens ??
+      usage.promptTokens ??
+      0;
+    if (!totalTokens) {
       return;
     }
 
-    const inputBudget = Math.max(
-      this.contextWindowTokens - this.reservedOutputTokens,
-      0
-    );
-
     const updatedSnapshot: ContextSnapshot = {
       ...this.contextSnapshot,
-      totalTokens: promptTokens,
-      budgetTokens: inputBudget,
-      inputBudget,
-      reservedOutputTokens: this.reservedOutputTokens,
-      userMessageTokens:
-        this.contextSnapshot.userMessageTokens > 0
-          ? this.contextSnapshot.userMessageTokens
-          : Math.max(
-              promptTokens - this.contextSnapshot.systemPromptTokens,
-              0
-            ),
+      totalTokens,
     };
 
     this.contextSnapshot = updatedSnapshot;

@@ -26,7 +26,7 @@ export const ConfigActions: React.FC<ConfigActionsProps> = ({
 }) => {
 
   return (
-    <section className="p-4 mb-4 border border-[var(--vscode-panel-border)] rounded bg-[var(--vscode-editor-background)]">
+    <section className="p-5 rounded-xl bg-[var(--vscode-editor-background)] shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
       <div className="flex gap-3 mb-3 flex-wrap items-center">
         <Button
           onClick={onSave}
@@ -47,10 +47,10 @@ export const ConfigActions: React.FC<ConfigActionsProps> = ({
       </div>
 
       {testResult && (
-        <div className={`flex items-center gap-2 px-3 py-2 mb-3 rounded-sm text-[13px] leading-snug animate-[test-result-fade-in_0.3s_ease-in-out] ${
+        <div className={`flex items-center gap-2 px-3 py-2 mb-3 rounded-md text-[13px] leading-snug shadow-[0_4px_14px_rgba(0,0,0,0.14)] animate-[test-result-fade-in_0.3s_ease-in-out] ${
           testResult.success
-            ? 'text-[var(--vscode-testing-iconPassed,#73bf69)] bg-[var(--vscode-inputValidation-infoBackground,rgba(100,150,255,0.15))] border border-[var(--vscode-inputValidation-infoBorder,var(--vscode-testing-iconPassed))]'
-            : 'text-[var(--vscode-errorForeground)] bg-[var(--vscode-inputValidation-errorBackground)] border border-[var(--vscode-inputValidation-errorBorder)]'
+            ? 'text-[var(--vscode-testing-iconPassed,#73bf69)] bg-[rgba(115,191,105,0.12)]'
+            : 'text-[var(--vscode-errorForeground)] bg-[var(--vscode-inputValidation-errorBackground)]'
         }`}>
           {testResult.success ? (
             <>

@@ -33,8 +33,8 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
   };
 
   return (
-    <section className="p-4 mb-4 border border-(--vscode-panel-border) rounded bg-(--vscode-editor-background) transition-all">
-      <h2 className="text-base font-semibold text-(--vscode-foreground) m-0 mb-4 pb-2 border-b border-(--vscode-panel-border)">
+    <section className="p-5 rounded-xl bg-(--vscode-editor-background) shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition-all">
+      <h2 className="text-base font-semibold text-(--vscode-foreground) m-0 mb-3">
         Advanced Settings
       </h2>
 

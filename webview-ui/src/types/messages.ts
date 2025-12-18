@@ -25,6 +25,11 @@ export interface ToolResult {
   is_error: boolean;
 }
 
+export interface TokenUsageSnapshot {
+  totalTokens: number;
+  availableTokens: number;
+}
+
 /**
  * Operation types that can be recorded
  */
@@ -51,38 +56,6 @@ export interface OperationRecord {
     contentPreview?: string;
     command?: string;
   };
-}
-
-export type ContextKind =
-  | "system_env"
-  | "user_message"
-  | "history"
-  | "mention_file"
-  | "mention_folder"
-  | "mention_url"
-  | "diagnostics"
-  | "terminal"
-  | "git_changes"
-  | "git_commit"
-  | "selection"
-  | "open_tabs"
-  | "code_search"
-  | "workspace";
-
-export interface ContextItemView {
-  id: string;
-  title: string;
-  kind: ContextKind;
-  priority: number;
-  pinned?: boolean;
-  status: "included" | "truncated" | "dropped";
-  note?: string;
-}
-
-export interface ContextSnapshot {
-  totalTokens: number;
-  availableTokens: number;
-  items: ContextItemView[];
 }
 
 /**
@@ -161,7 +134,7 @@ export type WebviewMessage =
   | { type: "conversation_list"; conversations: ConversationSummary[] }
   | { type: "conversation_deleted"; conversationId: string }
   | { type: "navigate"; route: string }
-  | { type: "context_snapshot"; context: ContextSnapshot }
+  | { type: "token_usage"; usage: TokenUsageSnapshot }
   | { type: "permission_request"; request: PermissionRequest }
   | { type: "set_input_value"; value: string };
 

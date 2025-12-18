@@ -19,7 +19,6 @@ import { PromptBuilder } from "../managers/PromptBuilder";
 import { PermissionManager } from "../managers/PermissionManager";
 import {
   ContextCollector,
-  ContextSnapshot,
 } from "../managers/ContextCollector";
 import { ConfigurationManager } from "../config/ConfigurationManager";
 import { ConversationHistoryManager } from "../managers/ConversationHistoryManager";
@@ -34,6 +33,11 @@ export interface PermissionRequest {
   operation: string;
   target: string;
   details: string;
+}
+
+export interface TokenUsageSnapshot {
+  totalTokens: number;
+  availableTokens: number;
 }
 
 /**
@@ -62,7 +66,7 @@ export type WebviewMessage =
   | { type: "configuration_exported"; data: string; filename: string }
   | { type: "configuration_imported"; success: boolean; error?: string }
   | { type: "validation_error"; errors: Record<string, string> }
-  | { type: "context_snapshot"; context: ContextSnapshot }
+  | { type: "token_usage"; usage: TokenUsageSnapshot }
   | { type: "permission_request"; request: PermissionRequest }
   | { type: "set_input_value"; value: string };
 

@@ -11,8 +11,6 @@ import { PromptBuilder } from "../managers/PromptBuilder";
 import { XMLParser } from "fast-xml-parser";
 import {
   ContextCollector,
-  ContextItem,
-  ContextSnapshot,
   ProjectContext,
 } from "../managers/ContextCollector";
 import { ErrorHandler, ErrorContext } from "../managers/ErrorHandler";
@@ -66,7 +64,6 @@ export class Task {
   private conversationHistoryManager: ConversationHistoryManager;
   private errorHandler: ErrorHandler;
   private contextWindowTokens: number;
-  private contextSnapshot?: ContextSnapshot;
 
   constructor(
     private provider: AgentWebviewProvider,
@@ -99,30 +96,21 @@ export class Task {
     try {
       // Collect context before starting
       console.log(`[Task ${this.id}] Collecting project context...`);
-      this.context = await this.contextCollector.collectContext();
-
-      const systemPrompt = await this.getSystemPrompt();
-      const contextItems = await this.contextCollector.collectContextItems(
-        this.message,
-        this.context
+      const context = await this.contextCollector.collectContext();
+      this.context = context;
+      const formattedContext = this.contextCollector.formatContext(
+        context
       );
-
-      const budgetedContext = this.contextCollector.budgetContextItems(
-        contextItems,
-        this.contextWindowTokens
-      );
-      this.contextSnapshot = budgetedContext.snapshot;
-
-      // Surface context usage to the webview for visibility
-      this.provider.postMessageToWebview({
-        type: "context_snapshot",
-        context: budgetedContext.snapshot,
+      this.publishTokenUsage({
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
       });
 
       // Format user message with context
       const messageWithContext = this.formatUserMessageWithContext(
         this.message,
-        budgetedContext.selectedItems
+        formattedContext
       );
 
       const userMessage: HistoryItem = {
@@ -152,17 +140,13 @@ export class Task {
    */
   private formatUserMessageWithContext(
     message: string,
-    contextItems: ContextItem[]
+    contextText: string
   ): string {
     const parts: string[] = [];
 
-    if (contextItems.length > 0) {
+    if (contextText) {
       parts.push("# Project Context");
-      for (const item of contextItems) {
-        const header = `### ${item.title} [${item.kind}]${item.appliedTruncation ? ` (${item.appliedTruncation})` : ""}`;
-        parts.push(header);
-        parts.push(item.content);
-      }
+      parts.push(contextText);
     }
 
     parts.push("# User Request");
@@ -231,9 +215,8 @@ export class Task {
         isStreaming: false,
       });
       if (usage) {
-        this.updateContextUsage(usage);
+        this.publishTokenUsage(usage);
       }
-
       console.log(
         `[Task ${this.id}] Loop ${this.loopCount}: Assistant response received`
       );
@@ -500,30 +483,17 @@ export class Task {
   }
 
   /**
-   * Update context snapshot with real token usage from OpenAI
+   * Publish token usage to the webview
    */
-  private updateContextUsage(usage: TokenUsage): void {
-    if (!this.contextSnapshot) {
-      return;
-    }
-
+  private publishTokenUsage(usage: TokenUsage): void {
     const totalTokens =
-      usage.totalTokens ??
-      usage.promptTokens ??
-      0;
-    if (!totalTokens) {
-      return;
-    }
-
-    const updatedSnapshot: ContextSnapshot = {
-      ...this.contextSnapshot,
-      totalTokens,
-    };
-
-    this.contextSnapshot = updatedSnapshot;
+      usage.totalTokens || usage.promptTokens + usage.completionTokens;
     this.provider.postMessageToWebview({
-      type: "context_snapshot",
-      context: updatedSnapshot,
+      type: "token_usage",
+      usage: {
+        totalTokens,
+        availableTokens: this.contextWindowTokens,
+      },
     });
   }
 

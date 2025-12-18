@@ -11,7 +11,7 @@ import type {
   ToolUse,
   ToolResult,
   WorkMode,
-  ContextSnapshot,
+  TokenUsageSnapshot,
 } from "./types/messages";
 import { vscode } from "./utils/vscode";
 import { useEvent } from "react-use";
@@ -28,8 +28,7 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentMode, setCurrentMode] = useState<WorkMode>("code");
   const [inputValue, setInputValue] = useState<string>("");
-  const [contextSnapshot, setContextSnapshot] =
-    useState<ContextSnapshot | null>(null);
+  const [tokenUsage, setTokenUsage] = useState<TokenUsageSnapshot | null>(null);
 
   const setMessages = (msg: React.SetStateAction<DisplayMessage[]>) => {
     console.log(msg);
@@ -92,9 +91,10 @@ function App() {
         setInputValue((prev) => prev + message.value);
         break;
 
-      case "context_snapshot":
-        setContextSnapshot(message.context);
+      case "token_usage":
+        setTokenUsage(message.usage);
         break;
+
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -350,7 +350,7 @@ function App() {
 
           <div className="flex-1 flex flex-col xl:flex-row gap-2 p-2 md:p-3 overflow-hidden">
             <aside className="w-full xl:w-[260px] flex-shrink-0 flex flex-col gap-2 overflow-y-auto pr-0 xl:pr-1">
-              <ContextPanel snapshot={contextSnapshot} />
+              <ContextPanel usage={tokenUsage} />
               <ConversationList vscode={vscode} />
             </aside>
 

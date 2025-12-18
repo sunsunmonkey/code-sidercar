@@ -10,8 +10,5 @@ export {
   DiagnosticInfo,
   FileNode,
   ProjectContext,
-  ContextItem,
-  ContextSnapshot,
-  BudgetedContext,
 } from './ContextCollector';
 export { PromptBuilder } from './PromptBuilder';

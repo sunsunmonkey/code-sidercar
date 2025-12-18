@@ -1,23 +1,22 @@
 import React from "react";
-import type { ContextSnapshot } from "../types/messages";
+import type { TokenUsageSnapshot } from "../types/messages";
 
 interface ContextPanelProps {
-  snapshot: ContextSnapshot | null;
+  usage: TokenUsageSnapshot | null;
 }
 
-export const ContextPanel: React.FC<ContextPanelProps> = ({ snapshot }) => {
-  const totalTokens = snapshot?.totalTokens ?? 0;
-  const availableTokens = snapshot?.availableTokens ?? 0;
-  const hasBudget = availableTokens > 0;
+export const ContextPanel: React.FC<ContextPanelProps> = ({ usage }) => {
+  const totalTokens = usage?.totalTokens ?? 0;
+  const availableTokens = usage?.availableTokens ?? 0;
 
   return (
     <div className="bg-(--vscode-sideBar-background) rounded-md p-3 shadow-sm text-sm space-y-1.5">
       <div className="flex items-center justify-between">
         <span className="text-(--vscode-foreground) font-semibold">
-          Context Usage
+          Token Usage
         </span>
         <span className="text-(--vscode-foreground) font-mono text-base">
-          {hasBudget ? `${totalTokens} / ${availableTokens}` : totalTokens}
+          {totalTokens} / {availableTokens}
         </span>
       </div>
     </div>

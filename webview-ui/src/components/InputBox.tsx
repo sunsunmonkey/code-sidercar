@@ -110,6 +110,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
         />
 
         <div className="flex flex-nowrap gap-1.5 justify-end items-center">
+          {disabled && (
+            <div className="flex h-8 items-center gap-1.5 px-2.5 text-[11px] text-[var(--vscode-descriptionForeground)] bg-[var(--vscode-badge-background)] rounded mr-auto">
+              <span className="inline-block w-2 h-2 bg-[var(--vscode-charts-blue)] rounded-full animate-pulse"></span>
+              AI is thinking...
+            </div>
+          )}
           {modeSelector && <div className="flex-shrink-0">{modeSelector}</div>}
           {onClear && (
             <button
@@ -148,13 +154,6 @@ export const InputBox: React.FC<InputBoxProps> = ({
           </button>
         </div>
       </div>
-
-      {disabled && (
-        <div className="flex items-center gap-2 px-2 py-1 text-[11px] text-[var(--vscode-descriptionForeground)] bg-[var(--vscode-badge-background)] rounded self-start">
-          <span className="inline-block w-2 h-2 bg-[var(--vscode-charts-blue)] rounded-full animate-pulse"></span>
-          AI is thinking...
-        </div>
-      )}
     </div>
   );
 };

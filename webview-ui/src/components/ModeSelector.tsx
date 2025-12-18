@@ -98,23 +98,23 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
   return (
     <div className="relative inline-flex" ref={dropdownRef}>
       <button
-        className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] cursor-pointer transition-all outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:shadow-[0_0_0_1px_var(--vscode-focusBorder)]"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] cursor-pointer transition-all outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:shadow-[0_0_0_1px_var(--vscode-focusBorder)]"
         onClick={toggleDropdown}
         aria-label={`Select work mode (current: ${currentModeOption.name})`}
         aria-expanded={isOpen}
         title={`${currentModeOption.name} mode`}
       >
-        <span className="text-[15px] leading-none flex-shrink-0 text-(--vscode-foreground)">
+        <span className="text-[14px] leading-none flex-shrink-0 text-(--vscode-foreground)">
           {currentModeOption.icon}
         </span>
       </button>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+6px)] left-0 z-[1000] min-w-[240px] max-w-[280px] bg-[var(--vscode-dropdown-background)] rounded shadow-[var(--vscode-widget-shadow)] overflow-hidden animate-[slideDown_0.15s_ease-out]">
+        <div className="absolute bottom-[calc(100%+6px)] right-0 z-[1000] min-w-[200px] max-w-[240px] bg-[var(--vscode-dropdown-background)] rounded shadow-[var(--vscode-widget-shadow)] overflow-hidden animate-[slideDown_0.15s_ease-out]">
           {modes.map((mode) => (
             <button
               key={mode.id}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 border-none bg-transparent text-[var(--vscode-dropdown-foreground)] cursor-pointer transition-colors text-left hover:bg-[var(--vscode-list-hoverBackground)] max-[400px]:px-3 max-[400px]:py-3 ${
+              className={`w-full flex items-center gap-2 pl-3 pr-4 py-2 border-none bg-transparent text-[13px] text-[var(--vscode-dropdown-foreground)] cursor-pointer transition-colors text-left hover:bg-[var(--vscode-list-hoverBackground)] max-[400px]:pl-3 max-[400px]:pr-3 max-[400px]:py-2.5 ${
                 mode.id === currentMode
                   ? "bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]"
                   : ""
@@ -125,10 +125,10 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
               <span className="text-base leading-none flex-shrink-0 max-[400px]:text-sm text-(--vscode-foreground)">
                 {mode.icon}
               </span>
-              <div className="flex-1 flex flex-col gap-0.5 min-w-0">
-                <span className="font-medium leading-tight">{mode.name}</span>
+              <div className="flex-1 flex flex-col gap-0 min-w-0">
+                <span className="font-medium leading-tight text-[13px]">{mode.name}</span>
                 <span
-                  className={`text-[11px] leading-tight whitespace-nowrap overflow-hidden text-ellipsis max-[400px]:text-[10px] ${
+                  className={`text-[10px] leading-tight whitespace-nowrap overflow-hidden text-ellipsis max-[400px]:text-[9px] ${
                     mode.id === currentMode
                       ? "text-[var(--vscode-list-activeSelectionForeground)] opacity-80"
                       : "text-[var(--vscode-descriptionForeground)]"
@@ -139,7 +139,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
               </div>
               {mode.id === currentMode && (
                 <Check
-                  size={14}
+                  size={12}
                   className="text-[var(--vscode-list-activeSelectionForeground)] flex-shrink-0"
                   strokeWidth={2.2}
                 />

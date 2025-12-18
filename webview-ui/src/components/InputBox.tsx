@@ -109,15 +109,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
           autoFocus={true}
         />
 
-        <div className="flex gap-2 justify-end items-center max-[480px]:flex-col max-[480px]:items-stretch">
-          {modeSelector && (
-            <div className="flex-shrink-0 max-[480px]:self-end">
-              {modeSelector}
-            </div>
-          )}
+        <div className="flex flex-nowrap gap-1.5 justify-end items-center">
+          {modeSelector && <div className="flex-shrink-0">{modeSelector}</div>}
           {onClear && (
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] cursor-pointer transition-colors hover:bg-[var(--vscode-button-secondaryHoverBackground)] disabled:opacity-50 disabled:cursor-not-allowed max-[480px]:w-full max-[480px]:justify-center text-sm"
+              className="flex items-center justify-center h-8 w-8 rounded bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] cursor-pointer transition-colors hover:bg-[var(--vscode-button-secondaryHoverBackground)] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               onClick={onClear}
               disabled={disabled}
               title="Clear conversation"
@@ -128,14 +124,14 @@ export const InputBox: React.FC<InputBoxProps> = ({
           )}
 
           <button
-            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] font-medium cursor-pointer transition-all whitespace-nowrap min-w-[90px] hover:bg-[var(--vscode-button-hoverBackground)] active:translate-y-px disabled:opacity-70 disabled:cursor-not-allowed max-[480px]:w-full"
+            className="flex items-center justify-center gap-1.5 h-8 px-3 rounded bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] text-[13px] font-medium cursor-pointer transition-all whitespace-nowrap hover:bg-[var(--vscode-button-hoverBackground)] active:translate-y-px disabled:opacity-70 disabled:cursor-not-allowed"
             onClick={handleSend}
             disabled={disabled || !inputValue.trim()}
             title="Send message (Ctrl+Enter)"
             aria-label="Send message"
           >
             {disabled ? (
-              <span className="flex items-center gap-2 text-sm">
+              <span className="flex items-center gap-2 text-[12px]">
                 <Loader2
                   size={16}
                   className="animate-spin"

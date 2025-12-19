@@ -338,19 +338,21 @@ function App() {
                 </span>
               </div>
             </div>
-            <button
-              className="bg-transparent text-(--vscode-button-foreground) px-2.5 py-1.5 cursor-pointer rounded-sm text-sm transition-colors hover:bg-(--vscode-button-hoverBackground)"
-              onClick={() => setTab("config")}
-              title="Open Configuration"
-              aria-label="Open configuration"
-            >
-              <Settings2 size={16} strokeWidth={2} />
-            </button>
+            <div className="flex items-center gap-2">
+              <ContextPanel usage={tokenUsage} />
+              <button
+                className="bg-transparent text-(--vscode-button-foreground) px-2.5 py-1.5 cursor-pointer rounded-sm text-sm transition-colors hover:bg-(--vscode-button-hoverBackground)"
+                onClick={() => setTab("config")}
+                title="Open Configuration"
+                aria-label="Open configuration"
+              >
+                <Settings2 size={16} strokeWidth={2} />
+              </button>
+            </div>
           </header>
 
           <div className="flex-1 flex flex-col xl:flex-row gap-2 p-2 md:p-3 overflow-hidden">
             <aside className="w-full xl:w-[260px] flex-shrink-0 flex flex-col gap-2 overflow-y-auto pr-0 xl:pr-1">
-              <ContextPanel usage={tokenUsage} />
               <ConversationList vscode={vscode} />
             </aside>
 

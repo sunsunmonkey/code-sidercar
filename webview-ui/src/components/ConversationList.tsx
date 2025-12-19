@@ -177,7 +177,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           aria-label="查看历史会话"
           aria-expanded={isExpanded}
         >
-          <History size={16} strokeWidth={2} />
+          <History className="translate-y-[1px]" size={16} strokeWidth={2} />
         </button>
 
         {isExpanded && (
@@ -190,7 +190,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           >
             <div className="flex justify-between items-center px-3 py-2.5 bg-[var(--vscode-sideBarSectionHeader-background)]">
               <span className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--vscode-foreground)]">
-                <History size={16} strokeWidth={2} />
+                <History
+                  className="translate-y-[1px]"
+                  size={19}
+                  strokeWidth={2}
+                />
                 <span>会话历史</span>
               </span>
               <div className="flex gap-1.5">
@@ -251,7 +255,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       <div className="flex justify-between items-center px-3 py-2.5 bg-[var(--vscode-sideBarSectionHeader-background)] border-b border-[var(--vscode-panel-border)]">
         <h3 className="m-0 text-sm font-semibold text-[var(--vscode-sideBarTitle-foreground)]">
           <span className="inline-flex items-center gap-2">
-            <History size={16} strokeWidth={2} />
+            <History className="translate-y-[1px]" size={16} strokeWidth={2} />
             <span>会话历史</span>
           </span>
         </h3>

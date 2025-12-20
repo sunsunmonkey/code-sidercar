@@ -1,12 +1,13 @@
 import React, { useRef, useEffect, useCallback } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import type { KeyboardEvent } from "react";
-import { Loader2, Send, Trash2 } from "lucide-react";
+import { Send, Square, Trash2 } from "lucide-react";
 
 interface InputBoxProps {
   onSend: (message: string) => void;
   onClear?: () => void;
-  disabled: boolean;
+  onCancel?: () => void;
+  isProcessing: boolean;
   inputValue: string;
   setInputValue: (text: string) => void;
   className?: string;
@@ -20,7 +21,8 @@ interface InputBoxProps {
 export const InputBox: React.FC<InputBoxProps> = ({
   onSend,
   onClear,
-  disabled,
+  onCancel,
+  isProcessing,
   inputValue,
   setInputValue,
   className,
@@ -33,11 +35,14 @@ export const InputBox: React.FC<InputBoxProps> = ({
    * Requirement 4.1: Support user input
    */
   const handleSend = useCallback(() => {
-    if (inputValue.trim() && !disabled) {
+    if (isProcessing) {
+      return;
+    }
+    if (inputValue.trim()) {
       onSend(inputValue);
       setInputValue("");
     }
-  }, [disabled, onSend, setInputValue, inputValue]);
+  }, [isProcessing, inputValue, onSend, setInputValue]);
 
   /**
    * Handle keyboard shortcuts
@@ -45,6 +50,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
    */
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (isProcessing) {
+        return;
+      }
       const isComposing = e.nativeEvent?.isComposing ?? false;
 
       // Ctrl+Enter or Cmd+Enter to send
@@ -66,7 +74,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
         handleSend();
       }
     },
-    [handleSend]
+    [handleSend, isProcessing]
   );
 
   /**
@@ -84,10 +92,21 @@ export const InputBox: React.FC<InputBoxProps> = ({
    * Focus input on mount
    */
   useEffect(() => {
-    if (textareaRef.current && !disabled) {
+    if (textareaRef.current && !isProcessing) {
       textareaRef.current.focus();
     }
-  }, [disabled]);
+  }, [isProcessing]);
+
+  const handlePrimaryAction = useCallback(() => {
+    if (isProcessing) {
+      onCancel?.();
+      return;
+    }
+    handleSend();
+  }, [handleSend, isProcessing, onCancel]);
+
+  const isPrimaryDisabled =
+    (isProcessing && !onCancel) || (!isProcessing && !inputValue.trim());
 
   return (
     <div
@@ -103,14 +122,14 @@ export const InputBox: React.FC<InputBoxProps> = ({
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          disabled={disabled}
+          disabled={isProcessing}
           minRows={3}
           maxRows={15}
           autoFocus={true}
         />
 
         <div className="flex flex-nowrap gap-1.5 justify-end items-center">
-          {disabled && (
+          {isProcessing && (
             <div className="flex h-8 items-center gap-1.5 px-2.5 text-[11px] text-[var(--vscode-descriptionForeground)] bg-[var(--vscode-badge-background)] rounded mr-auto">
               <span className="inline-block w-2 h-2 bg-[var(--vscode-charts-blue)] rounded-full animate-pulse"></span>
               AI is thinking...
@@ -121,7 +140,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
             <button
               className="flex items-center justify-center h-8 w-8 rounded bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] cursor-pointer transition-colors hover:bg-[var(--vscode-button-secondaryHoverBackground)] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               onClick={onClear}
-              disabled={disabled}
+              disabled={isProcessing}
               title="Clear conversation"
               aria-label="Clear conversation"
             >
@@ -131,23 +150,29 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
           <button
             className="flex items-center justify-center gap-1.5 h-8 px-3 rounded bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] text-[13px] font-medium cursor-pointer transition-all whitespace-nowrap hover:bg-[var(--vscode-button-hoverBackground)] active:translate-y-px disabled:opacity-70 disabled:cursor-not-allowed"
-            onClick={handleSend}
-            disabled={disabled || !inputValue.trim()}
-            title="Send message (Ctrl+Enter)"
-            aria-label="Send message"
+            onClick={handlePrimaryAction}
+            disabled={isPrimaryDisabled}
+            title={
+              isProcessing ? "Cancel current task" : "Send message (Ctrl+Enter)"
+            }
+            aria-label={isProcessing ? "Cancel current task" : "Send message"}
           >
-            {disabled ? (
-              <span className="flex items-center gap-2 text-[12px]">
-                <Loader2
+            {isProcessing ? (
+              <>
+                <Square
                   size={16}
-                  className="animate-spin"
                   strokeWidth={2}
+                  className="translate-y-[0.5px]"
                 />
-                Processing...
-              </span>
+                Cancel
+              </>
             ) : (
               <>
-                <Send size={16} strokeWidth={2} className="translate-y-[0.5px]" />
+                <Send
+                  size={16}
+                  strokeWidth={2}
+                  className="translate-y-[0.5px]"
+                />
                 Send
               </>
             )}

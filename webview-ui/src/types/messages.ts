@@ -145,6 +145,7 @@ export type UserMessage =
   | { type: "mode_change"; mode: WorkMode }
   | { type: "clear_conversation" }
   | { type: "new_conversation" }
+  | { type: "cancel_task" }
   | { type: "get_operation_history" }
   | { type: "clear_operation_history" }
   | { type: "get_conversation_history" }

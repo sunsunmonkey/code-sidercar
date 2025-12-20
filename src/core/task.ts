@@ -27,7 +27,11 @@ export type ToolResult = {
   is_error: boolean;
 };
 
-export { AssistantMessageContent, AssistantMessageParser, ToolUse } from "./assistantMessage";
+export {
+  AssistantMessageContent,
+  AssistantMessageParser,
+  ToolUse,
+} from "./assistantMessage";
 
 /**
  * Task class manages the ReAct (Reasoning and Acting) loop
@@ -45,6 +49,8 @@ export class Task {
   private conversationHistoryManager: ConversationHistoryManager;
   private errorHandler: ErrorHandler;
   private contextWindowTokens: number;
+  private isCancelled = false;
+  private abortController: AbortController | null = null;
 
   constructor(
     private provider: AgentWebviewProvider,
@@ -78,6 +84,7 @@ export class Task {
       // Collect context before starting
       console.log(`[Task ${this.id}] Collecting project context...`);
       const context = await this.contextCollector.collectContext();
+
       this.context = context;
       const formattedContext = this.contextCollector.formatContext(context);
       // Format user message with context
@@ -103,7 +110,6 @@ export class Task {
       console.log("save", this.message);
       await this.recursivelyMakeRequest(this.history);
     } catch (error) {
-      // Handle errors at the top level
       this.handleTaskError(error, "task_start");
     }
   }
@@ -133,6 +139,13 @@ export class Task {
    */
   private async recursivelyMakeRequest(history: HistoryItem[]) {
     try {
+      if (this.isCancelled) {
+        console.log(
+          `[Task ${this.id}] Cancelled before loop ${this.loopCount + 1}`
+        );
+        return;
+      }
+
       // Check loop count limit
       if (!this.shouldContinueLoop()) {
         this.provider.postMessageToWebview({
@@ -163,13 +176,17 @@ export class Task {
       // Stream LLM response
       const stream = apiHandler.createMessage(
         systemPrompt,
-        history as OpenAIHistoryItem
+        history as OpenAIHistoryItem,
+        this.createAbortController().signal
       );
 
       const parser = this.createAssistantMessageParser();
       let assistantMessage = "";
       let usage: TokenUsage | undefined;
       for await (const chunk of stream) {
+        if (this.isCancelled) {
+          break;
+        }
         if (chunk.type === "content") {
           assistantMessage += chunk.content;
           parser.processChunk(chunk.content);
@@ -183,6 +200,8 @@ export class Task {
         }
       }
 
+      this.abortController = null;
+
       parser.finalizeContentBlocks();
 
       // completely stream
@@ -195,6 +214,7 @@ export class Task {
       if (usage) {
         this.publishTokenUsage(usage);
       }
+
       console.log(
         `[Task ${this.id}] Loop ${this.loopCount}: Assistant response received`
       );
@@ -285,7 +305,6 @@ export class Task {
       // Continue the ReAct loop
       await this.recursivelyMakeRequest(this.history);
     } catch (error) {
-      // Handle errors in ReAct loop
       await this.handleTaskError(error, `react_loop_${this.loopCount}`);
     }
   }
@@ -342,6 +361,9 @@ export class Task {
     const results: ToolResult[] = [];
 
     for (const toolCall of toolCalls) {
+      if (this.isCancelled) {
+        break;
+      }
       console.log(`[Task ${this.id}] Executing tool: ${toolCall.name}`);
 
       this.provider.postMessageToWebview({
@@ -445,6 +467,19 @@ export class Task {
   }
 
   /**
+   * Cancel the running task
+   */
+  public cancel(): void {
+    if (this.isCancelled) {
+      return;
+    }
+    this.isCancelled = true;
+    this.abortController?.abort();
+    this.abortController = null;
+    this.provider.postMessageToWebview({ type: "task_complete" });
+  }
+
+  /**
    * Publish token usage to the webview
    */
   private publishTokenUsage(usage: TokenUsage): void {
@@ -518,6 +553,11 @@ export class Task {
     // If no recovery or recovery failed, end the task
     console.error(`[Task ${this.id}] Task failed due to error in ${operation}`);
     this.provider.postMessageToWebview({ type: "task_complete" });
+  }
+
+  private createAbortController(): AbortController {
+    this.abortController = new AbortController();
+    return this.abortController;
   }
 
   /**

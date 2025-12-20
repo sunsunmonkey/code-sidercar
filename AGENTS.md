@@ -44,6 +44,7 @@
 - Keep the code concise and clean. Avoid over-defensive programming; do not add excessive safety checks or unnecessary try-catch blocks.
 - **No backward compatibility** - Break old formats freely
 - When there is duplicated logic or similar code blocks, consider extracting them into a shared module or separate file.
+- If the content of a file is too large or contains multiple responsibilities, the code MUST be split into multiple smaller files, each with a clear, single responsibility and an explicitly stated filename.
 
 ## Page Design Language
 

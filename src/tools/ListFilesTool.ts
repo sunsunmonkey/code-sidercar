@@ -67,7 +67,7 @@ export class ListFilesTool extends BaseTool {
    * List directory contents non-recursively
    */
   private async listDirectory(dirPath: string): Promise<string[]> {
-    const uri = vscode.Uri.file(dirPath);
+   const uri = vscode.Uri.file(dirPath);
     const entries = await vscode.workspace.fs.readDirectory(uri);
     
     const result: string[] = [];
@@ -124,12 +124,49 @@ export class ListFilesTool extends BaseTool {
   }
 
   /**
+   * Normalize recursive flag, allowing string values from XML parsing
+   */
+  private normalizeRecursive(recursive: unknown): boolean {
+    if (typeof recursive === 'boolean' || recursive === undefined) {
+      return recursive === true;
+    }
+
+    if (typeof recursive === 'string') {
+      const value = recursive.trim().toLowerCase();
+      if (value === 'true') {
+        return true;
+      }
+      if (value === 'false') {
+        return false;
+      }
+    }
+
+    throw new Error('Invalid recursive flag');
+  }
+
+  override validate(params: Record<string, any>): boolean {
+    if (!params || typeof params.path !== 'string') {
+      return false;
+    }
+
+    try {
+      if ('recursive' in params) {
+        params.recursive = this.normalizeRecursive(params.recursive);
+      }
+    } catch {
+      return false;
+    }
+
+    return super.validate(params);
+  }
+
+  /**
    * Execute the list_files tool
    * Requirements: 13.4
    */
   async execute(params: Record<string, any>): Promise<string> {
     const dirPath = params.path as string;
-    const recursive = params.recursive === true;
+    const recursive = this.normalizeRecursive(params.recursive);
     
     try {
       // Validate and normalize the path

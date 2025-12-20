@@ -45,12 +45,14 @@ export class ApiHandler {
    * Create a streaming message request to the LLM
    * @param systemPrompt System prompt for the LLM
    * @param messages Conversation history
+   * @param signal Optional abort signal to cancel the request
    * @returns AsyncGenerator yielding message chunks
    * @throws Error if API call fails (Requirements 12.1, 12.4)
    */
   async *createMessage(
     systemPrompt: string,
-    messages: OpenAIHistoryItem
+    messages: OpenAIHistoryItem,
+    signal?: AbortSignal
   ): AsyncGenerator<ChatStreamEvent> {
     try {
       const client = new OpenAI({
@@ -69,7 +71,7 @@ export class ApiHandler {
         };
 
       const { data: completion } = await client.chat.completions
-        .create(request)
+        .create(request, { signal })
         .withResponse();
 
       for await (const chunk of completion) {

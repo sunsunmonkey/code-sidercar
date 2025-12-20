@@ -27,7 +27,11 @@ export type ToolResult = {
   is_error: boolean;
 };
 
-export { AssistantMessageContent, AssistantMessageParser, ToolUse } from "./assistantMessage";
+export {
+  AssistantMessageContent,
+  AssistantMessageParser,
+  ToolUse,
+} from "./assistantMessage";
 
 /**
  * Task class manages the ReAct (Reasoning and Acting) loop
@@ -45,6 +49,8 @@ export class Task {
   private conversationHistoryManager: ConversationHistoryManager;
   private errorHandler: ErrorHandler;
   private contextWindowTokens: number;
+  private isCancelled = false;
+  private abortController: AbortController | null = null;
 
   constructor(
     private provider: AgentWebviewProvider,
@@ -78,6 +84,9 @@ export class Task {
       // Collect context before starting
       console.log(`[Task ${this.id}] Collecting project context...`);
       const context = await this.contextCollector.collectContext();
+      if (this.isCancelled) {
+        return;
+      }
       this.context = context;
       const formattedContext = this.contextCollector.formatContext(context);
       // Format user message with context
@@ -104,6 +113,9 @@ export class Task {
       await this.recursivelyMakeRequest(this.history);
     } catch (error) {
       // Handle errors at the top level
+      if (this.isCancelled) {
+        return;
+      }
       this.handleTaskError(error, "task_start");
     }
   }
@@ -133,6 +145,13 @@ export class Task {
    */
   private async recursivelyMakeRequest(history: HistoryItem[]) {
     try {
+      if (this.isCancelled) {
+        console.log(
+          `[Task ${this.id}] Cancelled before loop ${this.loopCount + 1}`
+        );
+        return;
+      }
+
       // Check loop count limit
       if (!this.shouldContinueLoop()) {
         this.provider.postMessageToWebview({
@@ -147,6 +166,9 @@ export class Task {
 
       const apiHandler = new ApiHandler(this.apiConfiguration);
       const systemPrompt = await this.getSystemPrompt();
+      if (this.isCancelled) {
+        return;
+      }
 
       history = history.map((item) => {
         if (item.role === "tool_result") {
@@ -163,13 +185,17 @@ export class Task {
       // Stream LLM response
       const stream = apiHandler.createMessage(
         systemPrompt,
-        history as OpenAIHistoryItem
+        history as OpenAIHistoryItem,
+        this.createAbortController().signal
       );
 
       const parser = this.createAssistantMessageParser();
       let assistantMessage = "";
       let usage: TokenUsage | undefined;
       for await (const chunk of stream) {
+        if (this.isCancelled) {
+          break;
+        }
         if (chunk.type === "content") {
           assistantMessage += chunk.content;
           parser.processChunk(chunk.content);
@@ -183,7 +209,18 @@ export class Task {
         }
       }
 
+      this.abortController = null;
+
       parser.finalizeContentBlocks();
+
+      if (this.isCancelled) {
+        this.provider.postMessageToWebview({
+          type: "stream_chunk",
+          content: "",
+          isStreaming: false,
+        });
+        return;
+      }
 
       // completely stream
       this.provider.postMessageToWebview({
@@ -246,8 +283,15 @@ export class Task {
       // Execute tool calls and get results
       const toolResults = await this.handleToolCalls(toolCalls);
 
+      if (this.isCancelled) {
+        return;
+      }
+
       // Add tool results to history as user messages
       for (const result of toolResults) {
+        if (this.isCancelled) {
+          break;
+        }
         this.history.push({
           role: "tool_result",
           content: result,
@@ -273,6 +317,10 @@ export class Task {
         this.conversationHistoryManager.updateMessages(messages);
       }
 
+      if (this.isCancelled) {
+        return;
+      }
+
       // If attempt_completion was called, end the ReAct loop
       if (hasCompletion) {
         console.log(
@@ -286,6 +334,12 @@ export class Task {
       await this.recursivelyMakeRequest(this.history);
     } catch (error) {
       // Handle errors in ReAct loop
+      if (this.isCancelled) {
+        console.log(
+          `[Task ${this.id}] Cancelled during loop ${this.loopCount}`
+        );
+        return;
+      }
       await this.handleTaskError(error, `react_loop_${this.loopCount}`);
     }
   }
@@ -342,6 +396,9 @@ export class Task {
     const results: ToolResult[] = [];
 
     for (const toolCall of toolCalls) {
+      if (this.isCancelled) {
+        break;
+      }
       console.log(`[Task ${this.id}] Executing tool: ${toolCall.name}`);
 
       this.provider.postMessageToWebview({
@@ -357,6 +414,10 @@ export class Task {
 
       // Execute tool using ToolExecutor
       const result = await this.toolExecutor.executeTool(toolCall);
+
+      if (this.isCancelled) {
+        break;
+      }
 
       results.push(result);
     }
@@ -445,6 +506,19 @@ export class Task {
   }
 
   /**
+   * Cancel the running task
+   */
+  public cancel(): void {
+    if (this.isCancelled) {
+      return;
+    }
+    this.isCancelled = true;
+    this.abortController?.abort();
+    this.abortController = null;
+    this.provider.postMessageToWebview({ type: "task_complete" });
+  }
+
+  /**
    * Publish token usage to the webview
    */
   private publishTokenUsage(usage: TokenUsage): void {
@@ -518,6 +592,11 @@ export class Task {
     // If no recovery or recovery failed, end the task
     console.error(`[Task ${this.id}] Task failed due to error in ${operation}`);
     this.provider.postMessageToWebview({ type: "task_complete" });
+  }
+
+  private createAbortController(): AbortController {
+    this.abortController = new AbortController();
+    return this.abortController;
   }
 
   /**

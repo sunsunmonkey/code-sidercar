@@ -98,7 +98,7 @@ function App() {
   }, []);
 
   const handleStreamChunk = (content: string, isStreaming: boolean) => {
-    setIsProcessing(true);
+    setIsProcessing(isStreaming);
 
     setMessages((prev) => {
       let lastMessage = prev[prev.length - 1];
@@ -236,6 +236,14 @@ function App() {
   };
 
   /**
+   * Cancel the current task
+   */
+  const cancelTask = () => {
+    vscode.postMessage({ type: "cancel_task" });
+    setIsProcessing(false);
+  };
+
+  /**
    * Handle conversation cleared confirmation from extension
    */
   const handleConversationCleared = () => {
@@ -257,6 +265,7 @@ function App() {
     }));
 
     setMessages(convertedMessages);
+    setIsProcessing(false);
   };
 
   /**
@@ -338,7 +347,11 @@ function App() {
             </div>
             <div className="flex items-center gap-2">
               <ContextPanel usage={tokenUsage} />
-              <ConversationList vscode={vscode} variant="toolbar" />
+              <ConversationList
+                vscode={vscode}
+                variant="toolbar"
+                onConversationSwitch={() => setIsProcessing(false)}
+              />
               <button
                 className="bg-transparent text-[var(--vscode-button-foreground)] px-2.5 py-1.5 cursor-pointer rounded-sm text-sm transition-colors hover:bg-[var(--vscode-button-hoverBackground)]"
                 onClick={() => setTab("config")}
@@ -361,8 +374,9 @@ function App() {
             <div className="rounded-lg bg-[var(--vscode-editor-background)] p-2 md:p-3 shadow-[0_6px_16px_rgba(0,0,0,0.16)]">
               <InputBox
                 onSend={sendMessage}
+                onCancel={cancelTask}
                 onClear={clearConversation}
-                disabled={isProcessing}
+                isProcessing={isProcessing}
                 inputValue={inputValue}
                 setInputValue={setInputValue}
                 className="flex-1 min-w-[260px]"

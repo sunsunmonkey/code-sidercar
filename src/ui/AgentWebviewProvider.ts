@@ -18,9 +18,7 @@ import {
 import { ModeManager, WorkMode } from "../managers/ModeManager";
 import { PromptBuilder } from "../managers/PromptBuilder";
 import { PermissionManager } from "../managers/PermissionManager";
-import {
-  ContextCollector,
-} from "../managers/ContextCollector";
+import { ContextCollector } from "../managers/ContextCollector";
 import { ConfigurationManager } from "../config/ConfigurationManager";
 import { ConversationHistoryManager } from "../managers/ConversationHistoryManager";
 import { ErrorHandler } from "../managers/ErrorHandler";
@@ -79,6 +77,7 @@ export type UserMessage =
   | { type: "mode_change"; mode: WorkMode }
   | { type: "clear_conversation" }
   | { type: "new_conversation" }
+  | { type: "cancel_task" }
   | { type: "get_operation_history" }
   | { type: "clear_operation_history" }
   | { type: "get_conversation_history" }
@@ -326,6 +325,11 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    if (message.type === "cancel_task") {
+      this.cancelCurrentTask();
+      return;
+    }
+
     // Check if API is configured before starting task
     const isConfigured =
       await this.configurationManager.promptConfigureApiIfNeeded();
@@ -342,6 +346,8 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
     if (message.type === "user_message") {
       const { maxLoopCount, contextWindowSize } =
         await this.configurationManager.getConfiguration();
+
+      this.cancelCurrentTask();
 
       this.currentTask = new Task(
         this,
@@ -395,6 +401,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
    */
   private handleClearConversation(): void {
     try {
+      this.cancelCurrentTask();
       this.conversationHistoryManager.clearConversation();
 
       // Notify webview that conversation was cleared
@@ -463,6 +470,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
    */
   private handleNewConversation(): void {
     try {
+      this.cancelCurrentTask();
       this.conversationHistoryManager.clearConversation();
 
       // Send empty conversation history to webview
@@ -547,6 +555,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
    */
   private handleSwitchConversation(conversationId: string): void {
     try {
+      this.cancelCurrentTask();
       const success =
         this.conversationHistoryManager.restoreConversation(conversationId);
 
@@ -585,12 +594,24 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       `[AgentWebviewProvider] Received delete request for: ${conversationId}`
     );
     try {
+      const currentConversationId =
+        this.conversationHistoryManager.getCurrentConversationId();
+      const isCurrentConversation = currentConversationId === conversationId;
+
+      if (isCurrentConversation) {
+        this.cancelCurrentTask();
+      }
       const success =
         this.conversationHistoryManager.deleteConversation(conversationId);
 
       console.log(`[AgentWebviewProvider] Delete result: ${success}`);
 
       if (success) {
+        if (isCurrentConversation) {
+          this.conversationHistoryManager.startNewConversation();
+          this.postMessageToWebview({ type: "conversation_cleared" });
+        }
+
         this.postMessageToWebview({
           type: "conversation_deleted",
           conversationId: conversationId,
@@ -653,6 +674,17 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
    */
   postMessageToWebview(message: WebviewMessage) {
     this.webview?.postMessage(message);
+  }
+
+  /**
+   * Cancel and clear the current task if one is running
+   */
+  private cancelCurrentTask(): void {
+    if (!this.currentTask) {
+      return;
+    }
+    this.currentTask.cancel();
+    this.currentTask = undefined;
   }
 
   /**

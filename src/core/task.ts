@@ -476,8 +476,7 @@ export class Task {
    * Publish token usage to the webview
    */
   private publishTokenUsage(usage: TokenUsage): void {
-    const totalTokens =
-      usage.totalTokens || usage.promptTokens + usage.completionTokens;
+    const totalTokens = usage.totalTokens;
     this.provider.postMessageToWebview({
       type: "token_usage",
       usage: {

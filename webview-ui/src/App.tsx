@@ -31,7 +31,6 @@ function App() {
   const [tokenUsage, setTokenUsage] = useState<TokenUsageSnapshot | null>(null);
 
   const setMessages = (msg: React.SetStateAction<DisplayMessage[]>) => {
-    console.log(msg);
     setMessage(msg);
   };
   /**

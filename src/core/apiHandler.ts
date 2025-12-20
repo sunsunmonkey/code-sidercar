@@ -27,8 +27,6 @@ export type OpenAIHistoryItem =
   OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
 export type TokenUsage = {
-  promptTokens: number;
-  completionTokens: number;
   totalTokens: number;
 };
 
@@ -84,8 +82,6 @@ export class ApiHandler {
           yield {
             type: "usage",
             usage: {
-              promptTokens: chunk.usage.prompt_tokens ?? 0,
-              completionTokens: chunk.usage.completion_tokens ?? 0,
               totalTokens: chunk.usage.total_tokens ?? 0,
             },
           };

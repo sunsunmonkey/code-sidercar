@@ -1,224 +1,262 @@
-import * as vscode from 'vscode';
-import * as path from 'path';
-import { spawn } from 'child_process';
-import { BaseTool, ParameterDefinition } from './Tool';
-
-/**
- * Custom Pseudoterminal implementation for capturing command output
- */
-class CommandPseudoterminal implements vscode.Pseudoterminal {
-  private writeEmitter = new vscode.EventEmitter<string>();
-  private closeEmitter = new vscode.EventEmitter<number | void>();
-
-  onDidWrite: vscode.Event<string> = this.writeEmitter.event;
-  onDidClose: vscode.Event<number | void> = this.closeEmitter.event;
-
-  private output: string[] = [];
-
-  constructor(
-    private command: string,
-    private cwd: string,
-    private onComplete: (output: string, exitCode: number) => void
-  ) {}
-
-  open(_initialDimensions: vscode.TerminalDimensions | undefined): void {
-    this.executeCommand();
-  }
-
-  close(): void {
-    // Cleanup
-  }
-
-  getOutput(): string {
-    return this.output.join('');
-  }
-
-  private executeCommand(): void {
-    // Write command being executed
-    this.write(`\x1b[1m$ ${this.command}\x1b[0m\r\n`);
-
-    // Determine shell based on platform
-    const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
-    const shellArgs = process.platform === 'win32' ? ['/c', this.command] : ['-c', this.command];
-
-    // Spawn the process
-    const proc = spawn(shell, shellArgs, {
-      cwd: this.cwd,
-      shell: false,
-      env: process.env,
-    });
-
-    // Handle stdout
-    proc.stdout.on('data', (data: Buffer) => {
-      const text = data.toString();
-      this.output.push(text);
-      this.write(text.replace(/\n/g, '\r\n'));
-    });
-
-    // Handle stderr
-    proc.stderr.on('data', (data: Buffer) => {
-      const text = data.toString();
-      this.output.push(text);
-      // Write stderr in red
-      this.write(`\x1b[31m${text.replace(/\n/g, '\r\n')}\x1b[0m`);
-    });
-
-    // Handle process completion
-    proc.on('close', (code) => {
-      const exitCode = code ?? 0;
-
-      if (exitCode === 0) {
-        this.write(`\r\n\x1b[32m✓ Command completed successfully (exit code: ${exitCode})\x1b[0m\r\n`);
-      } else {
-        this.write(`\r\n\x1b[31m✗ Command failed (exit code: ${exitCode})\x1b[0m\r\n`);
-      }
-
-      // Notify completion
-      this.onComplete(this.getOutput(), exitCode);
-
-      // Terminal remains open for user to review output
-    });
-
-    // Handle errors
-    proc.on('error', (error) => {
-      const errorMsg = `Failed to execute command: ${error.message}`;
-      this.output.push(errorMsg);
-      this.write(`\r\n\x1b[31m${errorMsg}\x1b[0m\r\n`);
-      this.onComplete(this.getOutput(), 1);
-      // Terminal remains open for user to review error
-    });
-  }
-
-  private write(data: string): void {
-    this.writeEmitter.fire(data);
-  }
-}
+import * as vscode from "vscode";
+import * as path from "path";
+import { BaseTool, ParameterDefinition } from "./Tool";
 
 /**
  * ExecuteCommandTool - executes terminal commands in VS Code terminal
- * Requirements: 13.5
  *
- * This tool executes shell commands in a visible VS Code terminal and returns the output.
- * It supports specifying a working directory and includes security checks.
+ * This tool executes shell commands directly in VS Code's native terminal,
+ * providing users with the same experience as running commands manually.
+ * Uses Shell Integration API to capture command output.
  * This tool requires user permission before execution.
  */
 export class ExecuteCommandTool extends BaseTool {
-  readonly name = 'execute_command';
-  readonly description = 'Execute a shell command in the VS Code terminal and return the output. The command will be visible in the terminal. Supports specifying a working directory. Use this to run build commands, tests, linters, or other CLI tools.';
-  readonly requiresPermission = true; // Command execution requires permission
+  readonly name = "execute_command";
+  readonly description =
+    "Execute a shell command in the VS Code terminal. The command will run in a real VS Code terminal visible to the user. Use this to run build commands, tests, linters, or other CLI tools.";
+  readonly requiresPermission = true;
+
+  private static agentTerminal: vscode.Terminal | undefined;
+  private static terminalCloseListener: vscode.Disposable | undefined;
 
   readonly parameters: ParameterDefinition[] = [
     {
-      name: 'command',
-      type: 'string',
+      name: "command",
+      type: "string",
       required: true,
-      description: 'The shell command to execute',
+      description: "The shell command to execute",
     },
     {
-      name: 'cwd',
-      type: 'string',
+      name: "cwd",
+      type: "string",
       required: false,
-      description: 'The working directory for the command (relative to workspace root). Defaults to workspace root.',
+      description:
+        "The working directory for the command (relative to workspace root). Defaults to workspace root.",
     },
   ];
 
   /**
    * Validate and normalize working directory path
-   * Requirements: 13.5
    */
   private validateCwd(cwd: string | undefined): string {
-    // Get workspace folder
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
-      throw new Error('No workspace folder is open');
+      throw new Error("No workspace folder is open");
     }
 
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
-    
-    // If no cwd specified, use workspace root
+
     if (!cwd) {
       return workspaceRoot;
     }
-    
-    // Resolve the path relative to workspace root
-    const resolvedPath = path.isAbsolute(cwd) 
-      ? cwd 
+
+    const resolvedPath = path.isAbsolute(cwd)
+      ? cwd
       : path.join(workspaceRoot, cwd);
-    
-    // Normalize the path to resolve .. and .
+
     const normalizedPath = path.normalize(resolvedPath);
-    
-    // Check if the normalized path is within the workspace
+
     if (!normalizedPath.startsWith(workspaceRoot)) {
-      throw new Error(`Access denied: Working directory '${cwd}' is outside the workspace`);
+      throw new Error(
+        `Access denied: Working directory '${cwd}' is outside the workspace`
+      );
     }
-    
+
     return normalizedPath;
   }
 
   /**
-   * Execute the command in a VS Code terminal
-   * Requirements: 13.5
+   * Get or create a dedicated terminal for the agent
+   */
+  private getOrCreateTerminal(cwd: string): vscode.Terminal {
+    // Check if terminal still exists and is not closed
+    if (ExecuteCommandTool.agentTerminal) {
+      const terminals = vscode.window.terminals;
+      const terminalExists = terminals.includes(
+        ExecuteCommandTool.agentTerminal
+      );
+      if (!terminalExists) {
+        ExecuteCommandTool.agentTerminal = undefined;
+      }
+    }
+
+    if (!ExecuteCommandTool.agentTerminal) {
+      ExecuteCommandTool.agentTerminal = vscode.window.createTerminal({
+        name: "Agent",
+        cwd,
+      });
+
+      // Listen for terminal close
+      if (!ExecuteCommandTool.terminalCloseListener) {
+        ExecuteCommandTool.terminalCloseListener =
+          vscode.window.onDidCloseTerminal((closedTerminal) => {
+            if (closedTerminal === ExecuteCommandTool.agentTerminal) {
+              ExecuteCommandTool.agentTerminal = undefined;
+            }
+          });
+      }
+    }
+
+    return ExecuteCommandTool.agentTerminal;
+  }
+
+  /**
+   * Wait for shell integration to become available
+   */
+  private async waitForShellIntegration(
+    terminal: vscode.Terminal,
+    timeout: number = 10000
+  ): Promise<vscode.TerminalShellIntegration | undefined> {
+    // Check if already available
+    if (terminal.shellIntegration) {
+      return terminal.shellIntegration;
+    }
+
+    // Wait for shell integration to activate
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        disposable.dispose();
+        resolve(undefined);
+      }, timeout);
+
+      const disposable = vscode.window.onDidChangeTerminalShellIntegration(
+        (e) => {
+          if (e.terminal === terminal) {
+            clearTimeout(timer);
+            disposable.dispose();
+            resolve(e.shellIntegration);
+          }
+        }
+      );
+
+      // Also check again in case it became available
+      if (terminal.shellIntegration) {
+        clearTimeout(timer);
+        disposable.dispose();
+        resolve(terminal.shellIntegration);
+      }
+    });
+  }
+
+  /**
+   * Execute command using shell integration and capture output
+   */
+  private async executeWithShellIntegration(
+    shellIntegration: vscode.TerminalShellIntegration,
+    command: string,
+    timeout: number = 60000
+  ): Promise<{ output: string; exitCode: number | undefined }> {
+    // Execute the command
+    const execution = shellIntegration.executeCommand(command);
+
+    // Start reading output immediately (before waiting for end)
+    let output = "";
+    const readPromise = (async () => {
+      try {
+        const stream = execution.read();
+        for await (const data of stream) {
+          output += data;
+        }
+      } catch {
+        // Stream may close or error, that's ok
+      }
+    })();
+
+    // Wait for command to end with timeout
+    const endPromise = new Promise<number | undefined>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        disposable.dispose();
+        reject(new Error(`Command timed out after ${timeout / 1000} seconds`));
+      }, timeout);
+
+      const disposable = vscode.window.onDidEndTerminalShellExecution((e) => {
+        if (e.execution === execution) {
+          clearTimeout(timer);
+          disposable.dispose();
+          resolve(e.exitCode);
+        }
+      });
+    });
+
+    // Wait for both reading and command end
+    const exitCode = await endPromise;
+    await readPromise;
+
+    return {
+      output: output.trim(),
+      exitCode,
+    };
+  }
+
+  /**
+   * Execute the command in VS Code's native terminal
    */
   async execute(params: Record<string, any>): Promise<string> {
     const command = params.command as string;
     const cwd = params.cwd as string | undefined;
 
     try {
-      // Validate and normalize the working directory
       const validatedCwd = this.validateCwd(cwd);
+      const terminal = this.getOrCreateTerminal(validatedCwd);
 
-      // Create a promise to wait for command completion
-      const executionPromise = new Promise<{ output: string; exitCode: number }>((resolve) => {
-        // Create pseudoterminal
-        const pty = new CommandPseudoterminal(command, validatedCwd, (output, exitCode) => {
-          resolve({ output, exitCode });
-        });
+      // Show the terminal to the user
+      terminal.show(false);
 
-        // Create terminal with the pseudoterminal
-        const terminal = vscode.window.createTerminal({
-          name: `Agent: ${command.substring(0, 30)}${command.length > 30 ? '...' : ''}`,
-          pty,
-        });
+      // If cwd is specified, cd to that directory first (using sendText for cd)
+      if (cwd) {
+        const escapedPath = validatedCwd.includes(" ")
+          ? `"${validatedCwd}"`
+          : validatedCwd;
+        terminal.sendText(`cd ${escapedPath}`, true);
+        // Small delay to let cd complete
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
 
-        // Show the terminal
-        terminal.show(false); // false = don't take focus
-      });
+      // Try to use shell integration for output capture
+      const shellIntegration = await this.waitForShellIntegration(terminal);
 
-      // Wait for command to complete with timeout (60 seconds)
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error(`Command timed out after 60 seconds: ${command}`));
-        }, 60000);
-      });
+      if (shellIntegration) {
+        // Use shell integration to execute and capture output
+        const { output, exitCode } = await this.executeWithShellIntegration(
+          shellIntegration,
+          command
+        );
 
-      const { output, exitCode } = await Promise.race([executionPromise, timeoutPromise]);
+        let result = `Working directory: ${validatedCwd}\n`;
+        result += `Exit code: ${exitCode ?? "unknown"}\n\n`;
 
-      // Build result message
-      let result = `Command executed in VS Code terminal\n`;
-      result += `Working directory: ${cwd || '.'}\n`;
-      result += `Command: ${command}\n`;
-      result += `Exit code: ${exitCode}\n\n`;
+        if (output) {
+          result += `Output:\n${output}`;
+        } else {
+          result += "No output captured.";
+        }
 
-      if (output.trim()) {
-        result += `Output:\n${output}`;
+        if (exitCode !== undefined && exitCode !== 0) {
+          throw new Error(result);
+        }
+
+        return result;
       } else {
-        result += 'No output produced.\n';
+        // Fallback: just send the command without output capture
+        terminal.sendText(command, true);
+
+        return `Command sent to VS Code terminal:\n\`\`\`\n${command}\n\`\`\`\nWorking directory: ${validatedCwd}\n\nNote: Shell integration not available. Check the terminal panel for output.`;
       }
-
-      // If command failed, throw an error with the output
-      if (exitCode !== 0) {
-        throw new Error(result);
-      }
-
-      return result;
-
     } catch (error: any) {
-      // Re-throw with context if not already formatted
-      if (error.message.includes('Command executed in VS Code terminal')) {
+      if (error.message.includes("Working directory:")) {
         throw error;
       }
       throw new Error(`Failed to execute command: ${error.message}`);
+    }
+  }
+
+  /**
+   * Cleanup resources
+   */
+  static dispose(): void {
+    if (ExecuteCommandTool.terminalCloseListener) {
+      ExecuteCommandTool.terminalCloseListener.dispose();
+      ExecuteCommandTool.terminalCloseListener = undefined;
     }
   }
 }

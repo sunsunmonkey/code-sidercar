@@ -1,6 +1,6 @@
 ﻿import React, { useState, useRef, useEffect } from "react";
 import { Check } from "lucide-react";
-import type { WorkMode } from "../types/messages";
+import type { WorkMode } from "coding-agent-shared/types/modes";
 
 interface ModeSelectorProps {
   currentMode: WorkMode;

@@ -1,7 +1,7 @@
 import React from "react";
 import { MessageSquare } from "lucide-react";
 import { Message } from "./Message";
-import type { DisplayMessage } from "../types/messages";
+import type { DisplayMessage } from "coding-agent-shared/types/messages";
 
 interface MessageListProps {
   messages: DisplayMessage[];

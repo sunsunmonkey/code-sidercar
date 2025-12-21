@@ -15,7 +15,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import type { ToolUse, ToolResult } from "../types/messages";
+import type { ToolUse, ToolResult } from "coding-agent-shared/types/tools";
 
 /**
  * ToolCallDisplay component shows a tool call with its parameters

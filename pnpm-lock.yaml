@@ -27,6 +27,9 @@ importers:
       '@vscode/test-electron':
         specifier: ^2.5.2
         version: 2.5.2
+      coding-agent-shared:
+        specifier: workspace:*
+        version: link:shared
       esbuild:
         specifier: ^0.27.0
         version: 0.27.0
@@ -42,6 +45,8 @@ importers:
       typescript-eslint:
         specifier: ^8.46.3
         version: 8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)
+
+  shared: {}
 
   webview-ui:
     dependencies:
@@ -91,6 +96,9 @@ importers:
       '@vitejs/plugin-react-swc':
         specifier: ^4.2.2
         version: 4.2.2(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))
+      coding-agent-shared:
+        specifier: workspace:*
+        version: link:../shared
       eslint:
         specifier: ^9.39.1
         version: 9.39.1(jiti@2.6.1)

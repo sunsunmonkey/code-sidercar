@@ -12,7 +12,8 @@ import type {
   ToolResult,
   WorkMode,
   TokenUsageSnapshot,
-} from "./types/messages";
+  PermissionRequestWithId,
+} from "coding-agent-shared/types/messages";
 import { vscode } from "./utils/vscode";
 import { useEvent } from "react-use";
 import { ContextPanel } from "./components/ContextPanel";
@@ -285,9 +286,7 @@ function App() {
   /**
    * Handle permission request - add as message
    */
-  const handlePermissionRequest = (
-    request: import("./types/messages").PermissionRequest
-  ) => {
+  const handlePermissionRequest = (request: PermissionRequestWithId) => {
     const permissionMessage: DisplayMessage = {
       id: request.id,
       role: "permission",

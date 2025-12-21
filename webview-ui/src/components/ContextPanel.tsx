@@ -1,5 +1,5 @@
 import React from "react";
-import type { TokenUsageSnapshot } from "../types/messages";
+import type { TokenUsageSnapshot } from "coding-agent-shared/types/messages";
 
 interface ContextPanelProps {
   usage: TokenUsageSnapshot | null;

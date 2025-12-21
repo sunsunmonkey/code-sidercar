@@ -1,17 +1,6 @@
 import { OpenAI } from "openai";
-import { ToolUse } from "./assistantMessage";
-import { ToolResult } from "./task";
-
-/**
- * API configuration for LLM service
- */
-export type ApiConfiguration = {
-  model: string;
-  apiKey: string;
-  baseUrl: string;
-  temperature?: number;
-  maxTokens?: number;
-};
+import type { ToolResult, ToolUse } from "coding-agent-shared/types/tools";
+import type { ApiConfiguration } from "coding-agent-shared/types/api";
 
 /**
  * Message history item

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { Task, ToolResult } from "../core/task";
-import { ToolUse } from "../core/assistantMessage";
-import { ApiConfiguration, HistoryItem } from "../core/apiHandler";
+import { Task } from "../core/task";
+import { HistoryItem } from "../core/apiHandler";
+
 import {
   ToolExecutor,
   AttemptCompletionTool,
@@ -15,79 +15,21 @@ import {
   GetDiagnosticsTool,
   ListCodeDefinitionNamesTool,
 } from "../tools";
-import { ModeManager, WorkMode } from "../managers/ModeManager";
+import { ModeManager } from "../managers/ModeManager";
+import type { ApiConfiguration } from "coding-agent-shared/types/api";
+import type { WorkMode } from "coding-agent-shared/types/modes";
 import { PromptBuilder } from "../managers/PromptBuilder";
 import { PermissionManager } from "../managers/PermissionManager";
 import { ContextCollector } from "../managers/ContextCollector";
 import { ConfigurationManager } from "../config/ConfigurationManager";
 import { ConversationHistoryManager } from "../managers/ConversationHistoryManager";
 import { ErrorHandler } from "../managers/ErrorHandler";
-
-/**
- * Permission request interface
- */
-export interface PermissionRequest {
-  id: string;
-  toolName: string;
-  operation: string;
-  target: string;
-  details: string;
-}
-
-export interface TokenUsageSnapshot {
-  totalTokens: number;
-  availableTokens: number;
-}
-
-/**
- * Message types sent to webview
- */
-export type WebviewMessage =
-  | { type: "stream_chunk"; content: string; isStreaming: boolean }
-  | { type: "tool_call"; toolCall: ToolUse }
-  | { type: "tool_result"; content: ToolResult }
-  | { type: "error"; message: string }
-  | { type: "task_complete" }
-  | { type: "mode_changed"; mode: WorkMode }
-  | { type: "conversation_cleared" }
-  | { type: "conversation_history"; messages: any[] }
-  | { type: "conversation_list"; conversations: any[] }
-  | { type: "conversation_deleted"; conversationId: string }
-  | { type: "navigate"; route: string }
-  | { type: "configuration_loaded"; config: any }
-  | { type: "configuration_saved"; success: boolean; error?: string }
-  | {
-      type: "connection_test_result";
-      success: boolean;
-      error?: string;
-      responseTime?: number;
-    }
-  | { type: "configuration_exported"; data: string; filename: string }
-  | { type: "configuration_imported"; success: boolean; error?: string }
-  | { type: "validation_error"; errors: Record<string, string> }
-  | { type: "token_usage"; usage: TokenUsageSnapshot }
-  | { type: "permission_request"; request: PermissionRequest }
-  | { type: "set_input_value"; value: string };
-
-/**
- * Message types received from webview
- */
-export type UserMessage =
-  | { type: "user_message"; content: string }
-  | { type: "mode_change"; mode: WorkMode }
-  | { type: "clear_conversation" }
-  | { type: "new_conversation" }
-  | { type: "cancel_task" }
-  | { type: "get_operation_history" }
-  | { type: "clear_operation_history" }
-  | { type: "get_conversation_history" }
-  | { type: "get_conversation_list" }
-  | { type: "switch_conversation"; conversationId: string }
-  | { type: "delete_conversation"; conversationId: string }
-  | { type: "get_configuration" }
-  | { type: "save_configuration"; config: any }
-  | { type: "test_connection"; apiConfig: any }
-  | { type: "permission_response"; requestId: string; approved: boolean };
+import type {
+  DisplayMessage,
+  UIConfiguration,
+  UserMessage,
+  WebviewMessage,
+} from "coding-agent-shared/types/messages";
 
 /**
  * Agent Webview Provider manages the sidebar panel and task execution
@@ -249,7 +191,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
 </html>
 `;
 
-    webviewView.webview.onDidReceiveMessage(async (message: any) => {
+    webviewView.webview.onDidReceiveMessage(async (message: UserMessage) => {
       await this.handleMessage(message);
     });
   }
@@ -257,80 +199,43 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   /**
    * Handle messages from webview
    */
-  private async handleMessage(message: any): Promise<void> {
-    // Handle mode change messages
-    if (message.type === "mode_change") {
-      this.handleModeChange(message.mode);
-      return;
-    }
-
-    // Handle clear conversation messages (Requirement 4.5)
-    if (message.type === "clear_conversation") {
-      this.handleClearConversation();
-      return;
-    }
-
-    // Handle get conversation history messages
-    if (message.type === "get_conversation_history") {
-      this.handleGetConversationHistory();
-      return;
-    }
-
-    // Handle new conversation
-    if (message.type === "new_conversation") {
-      this.handleNewConversation();
-      return;
-    }
-
-    // Handle get conversation list
-    if (message.type === "get_conversation_list") {
-      this.handleGetConversationList();
-      return;
-    }
-
-    // Handle switch conversation
-    if (message.type === "switch_conversation") {
-      this.handleSwitchConversation(message.conversationId);
-      return;
-    }
-
-    // Handle delete conversation
-    if (message.type === "delete_conversation") {
-      this.handleDeleteConversation(message.conversationId);
-      return;
-    }
-
-    // Handle configuration messages
-    if (message.type === "get_configuration") {
-      await this.handleGetConfiguration();
-      return;
-    }
-
-    if (message.type === "save_configuration") {
-      await this.handleSaveConfiguration(message.config);
-      return;
-    }
-
-    if (message.type === "test_connection") {
-      await this.handleTestConnection(message.apiConfig);
-      return;
-    }
-
-    // Handle permission response messages
-    if (message.type === "permission_response") {
+  private readonly messageHandlers: {
+    [K in UserMessage["type"]]?: (
+      message: Extract<UserMessage, { type: K }>
+    ) => Promise<void> | void;
+  } = {
+    mode_change: (message) => this.handleModeChange(message.mode),
+    clear_conversation: () => this.handleClearConversation(),
+    get_conversation_history: () => this.handleGetConversationHistory(),
+    new_conversation: () => this.handleNewConversation(),
+    get_conversation_list: () => this.handleGetConversationList(),
+    switch_conversation: (message) =>
+      this.handleSwitchConversation(message.conversationId),
+    delete_conversation: (message) =>
+      this.handleDeleteConversation(message.conversationId),
+    get_configuration: () => this.handleGetConfiguration(),
+    save_configuration: (message) =>
+      this.handleSaveConfiguration(message.config),
+    test_connection: (message) => this.handleTestConnection(message.apiConfig),
+    permission_response: (message) =>
       this.permissionManager.handlePermissionResponse(
         message.requestId,
         message.approved
-      );
-      return;
-    }
+      ),
+    cancel_task: () => this.cancelCurrentTask(),
+    user_message: (message) => this.handleUserMessage(message),
+  };
 
-    if (message.type === "cancel_task") {
-      this.cancelCurrentTask();
-      return;
+  private async handleMessage(message: UserMessage): Promise<void> {
+    const handler = this.messageHandlers[message.type];
+    if (handler) {
+      await handler(message as never);
     }
+  }
 
-    // Check if API is configured before starting task
+  private async handleUserMessage(
+    message: Extract<UserMessage, { type: "user_message" }>
+  ): Promise<void> {
     const isConfigured =
       await this.configurationManager.promptConfigureApiIfNeeded();
     if (!isConfigured) {
@@ -342,27 +247,24 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    // Handle user messages
-    if (message.type === "user_message") {
-      const { maxLoopCount, contextWindowSize } =
-        await this.configurationManager.getConfiguration();
+    const { maxLoopCount, contextWindowSize } =
+      await this.configurationManager.getConfiguration();
 
-      this.cancelCurrentTask();
+    this.cancelCurrentTask();
 
-      this.currentTask = new Task(
-        this,
-        this.apiConfiguration,
-        message.content,
-        maxLoopCount,
-        this.toolExecutor,
-        this.promptBuilder,
-        this.contextCollector,
-        this.conversationHistoryManager,
-        this.errorHandler,
-        contextWindowSize
-      );
-      await this.currentTask.start();
-    }
+    this.currentTask = new Task(
+      this,
+      this.apiConfiguration,
+      message.content,
+      maxLoopCount,
+      this.toolExecutor,
+      this.promptBuilder,
+      this.contextCollector,
+      this.conversationHistoryManager,
+      this.errorHandler,
+      contextWindowSize
+    );
+    await this.currentTask.start();
   }
 
   /**
@@ -432,10 +334,14 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
       const messages = this.conversationHistoryManager.getMessages();
 
       // Convert HistoryItem[] to DisplayMessage format
-      const displayMessages = messages.map(
+      const displayMessages: DisplayMessage[] = messages.map(
         (msg: HistoryItem, index: number) => {
+          const content =
+            typeof msg.content === "string" ? msg.content : msg.content.content;
           return {
             ...msg,
+            role: msg.role as DisplayMessage["role"],
+            content,
             id: `msg-${Date.now()}-${index}`,
             timestamp: new Date(),
           };
@@ -780,11 +686,20 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   /**
    * Handle save configuration request
    */
-  private async handleSaveConfiguration(config: any): Promise<void> {
+  private async handleSaveConfiguration(
+    config: UIConfiguration
+  ): Promise<void> {
     try {
+      const permissions = {
+        ...config.permissions,
+        alwaysConfirm:
+          config.permissions.alwaysConfirm ??
+          this.permissionManager.getSettings().alwaysConfirm,
+      };
+
       await this.configurationManager.updateConfiguration({
         api: config.api,
-        permissions: config.permissions,
+        permissions,
         maxLoopCount: config.advanced.maxLoopCount,
         contextWindowSize: config.advanced.contextWindowSize,
       });
@@ -813,7 +728,9 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
   /**
    * Handle test connection request
    */
-  private async handleTestConnection(apiConfig: any): Promise<void> {
+  private async handleTestConnection(
+    apiConfig: ApiConfiguration
+  ): Promise<void> {
     const startTime = Date.now();
 
     try {

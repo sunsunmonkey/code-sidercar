@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
-import { ApiConfiguration } from "../core/apiHandler";
+
 import { PermissionSettings } from "../managers/PermissionManager";
+import type { UIConfiguration } from "coding-agent-shared/types/config";
+import { ApiConfiguration } from "coding-agent-shared/types/api";
 /**
  * Complete plugin configuration
  */
@@ -26,27 +28,7 @@ export interface ExtensionConfiguration {
   contextWindowSize: number;
 }
 
-/**
- * UI-friendly configuration format
- */
-export interface UIConfiguration {
-  api: {
-    baseUrl: string;
-    model: string;
-    apiKey: string;
-    temperature: number;
-    maxTokens: number;
-  };
-  permissions: {
-    allowReadByDefault: boolean;
-    allowWriteByDefault: boolean;
-    allowExecuteByDefault: boolean;
-  };
-  advanced: {
-    maxLoopCount: number;
-    contextWindowSize: number;
-  };
-}
+export type { UIConfiguration } from "coding-agent-shared/types/config";
 
 /**
  * ConfigurationManager handles reading, saving, and validating plugin configuration

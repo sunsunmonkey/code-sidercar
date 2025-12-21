@@ -7,8 +7,8 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useVSCodeApi, useMessageListener } from './useVSCodeApi';
-import type { UIConfiguration, ValidationErrors } from '../types/config';
-import type { ConfigMessage, ConfigResponse } from '../types/messages';
+import type { UIConfiguration, ValidationErrors } from 'coding-agent-shared/types/config';
+import type { ConfigMessage, ConfigResponse } from 'coding-agent-shared/types/messages';
 import {
   validateUrl,
   validateModel,

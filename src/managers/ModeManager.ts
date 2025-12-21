@@ -1,10 +1,4 @@
-import * as vscode from "vscode";
-
-/**
- * Work mode types
- * Requirements: 7.1, 7.2, 7.3, 7.4
- */
-export type WorkMode = "architect" | "code" | "ask" | "debug";
+import type { WorkMode } from "coding-agent-shared/types/modes";
 
 /**
  * Mode definition interface

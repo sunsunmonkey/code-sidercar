@@ -1,19 +1,11 @@
+import type { ToolUse } from "coding-agent-shared/types/tools";
+
 /**
  * Text content in assistant message
  */
 export type TextContent = {
   type: "text";
   content: string;
-  partial?: boolean;
-};
-
-/**
- * Tool use request from assistant
- */
-export type ToolUse = {
-  type: "tool_use";
-  name: string;
-  params: Record<string, any>;
   partial?: boolean;
 };
 

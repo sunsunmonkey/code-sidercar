@@ -1,12 +1,9 @@
 import { Tool, ToolDefinition } from "./Tool";
-import { ToolUse } from "../core/assistantMessage";
-import { ToolResult } from "../core/task";
-import {
-  PermissionManager,
-  PermissionRequest,
-} from "../managers/PermissionManager";
+import { PermissionManager } from "../managers/PermissionManager";
 import { ErrorHandler, ErrorContext } from "../managers/ErrorHandler";
 
+import type { ToolUse, ToolResult } from "coding-agent-shared/types/tools";
+import type { PermissionRequest } from "coding-agent-shared/types/messages";
 /**
  * ToolExecutor manages tool registration and execution
  * Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 5.1, 5.2

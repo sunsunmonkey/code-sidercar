@@ -1,5 +1,4 @@
 import {
-  ApiConfiguration,
   ApiHandler,
   HistoryItem,
   OpenAIHistoryItem,
@@ -14,24 +13,10 @@ import { ConversationHistoryManager } from "../managers";
 import {
   AssistantMessageContent,
   AssistantMessageParser,
-  ToolUse,
 } from "./assistantMessage";
 
-/**
- * Tool execution result
- */
-export type ToolResult = {
-  type: "tool_result";
-  tool_name: string;
-  content: string;
-  is_error: boolean;
-};
-
-export {
-  AssistantMessageContent,
-  AssistantMessageParser,
-  ToolUse,
-} from "./assistantMessage";
+import type { ApiConfiguration } from "coding-agent-shared/types/api";
+import type { ToolUse, ToolResult } from "coding-agent-shared/types/tools";
 
 /**
  * Task class manages the ReAct (Reasoning and Acting) loop

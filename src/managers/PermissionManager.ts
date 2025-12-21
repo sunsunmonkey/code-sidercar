@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+import type {
+  PermissionRequest,
+  PermissionRequestWithId,
+} from "coding-agent-shared/types/permissions";
 
 /**
  * Permission settings for tool operations
@@ -23,32 +27,6 @@ export interface PermissionSettings {
    * Operations that always require confirmation regardless of defaults
    */
   alwaysConfirm: string[];
-}
-
-/**
- * Permission request details
- */
-export interface PermissionRequest {
-  /**
-   * Name of the tool requesting permission
-   */
-  toolName: string;
-
-  /**
-   * Type of operation (read, write, execute, delete)
-   */
-  operation: string;
-
-  /**
-   * Target of the operation (file path, command, etc.)
-   */
-  target: string;
-
-  /**
-   * Additional details about the operation
-   * Requirement: 5.2
-   */
-  details: string;
 }
 
 /**
@@ -191,7 +169,7 @@ export class PermissionManager {
       .toString(36)
       .substr(2, 9)}`;
 
-    const requestWithId = {
+    const requestWithId: PermissionRequestWithId = {
       id: requestId,
       ...request,
     };

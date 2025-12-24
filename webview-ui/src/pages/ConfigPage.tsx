@@ -3,8 +3,8 @@
  * Uses react-hook-form with zod for form validation
  */
 
-import { useEffect, useCallback, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useCallback, useState, useRef } from "react";
+import { useForm, useFormState } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, X } from "lucide-react";
 import { configSchema, type ConfigFormValues } from "../schemas/config";
@@ -25,6 +25,7 @@ import {
 import { Input } from "../components/ui/input";
 import { Switch } from "../components/ui/switch";
 import { Button } from "../components/ui/button";
+import { UnsavedChangesDialog } from "../components/ui/unsaved-changes-dialog";
 
 interface ConfigPageProps {
   isActive: boolean;
@@ -36,6 +37,9 @@ export const ConfigPage = ({ isActive, onBack }: ConfigPageProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [pendingBack, setPendingBack] = useState(false);
+  const lastSavedConfigRef = useRef<ConfigFormValues | null>(null);
   const [testResult, setTestResult] = useState<{
     success: boolean;
     error?: string;
@@ -61,6 +65,7 @@ export const ConfigPage = ({ isActive, onBack }: ConfigPageProps) => {
       advanced: { maxLoopCount: 10, contextWindowSize: 8192 },
     },
   });
+  const { isDirty } = useFormState({ control: form.control });
 
   /**
    * Handle messages from extension
@@ -70,10 +75,20 @@ export const ConfigPage = ({ isActive, onBack }: ConfigPageProps) => {
       switch (message.type) {
         case "configuration_loaded":
           form.reset(message.config);
+          lastSavedConfigRef.current = message.config;
           setIsLoading(false);
           break;
         case "configuration_saved":
           setIsSaving(false);
+          {
+            const currentValues = form.getValues();
+            form.reset(currentValues);
+            lastSavedConfigRef.current = currentValues;
+          }
+          if (pendingBack) {
+            setPendingBack(false);
+            onBack();
+          }
           break;
         case "connection_test_result":
           setIsTesting(false);
@@ -85,7 +100,7 @@ export const ConfigPage = ({ isActive, onBack }: ConfigPageProps) => {
           break;
       }
     },
-    [form]
+    [form, onBack, pendingBack]
   );
 
   useMessageListener<ConfigResponse>(handleMessage, [handleMessage]);
@@ -124,6 +139,35 @@ export const ConfigPage = ({ isActive, onBack }: ConfigPageProps) => {
       apiConfig: form.getValues("api"),
     };
     postMessage(message);
+  };
+
+  const handleBackClick = () => {
+    if (isSaving) {
+      setPendingBack(true);
+      return;
+    }
+
+    if (!isDirty) {
+      onBack();
+      return;
+    }
+
+    setIsConfirmOpen(true);
+  };
+
+  const handleDiscardChanges = () => {
+    setPendingBack(false);
+    setIsConfirmOpen(false);
+    if (lastSavedConfigRef.current) {
+      form.reset(lastSavedConfigRef.current);
+    }
+    onBack();
+  };
+
+  const handleSaveAndBack = () => {
+    setPendingBack(true);
+    setIsConfirmOpen(false);
+    void form.handleSubmit(onSubmit, () => setPendingBack(false))();
   };
 
   const hasErrors = !form.formState.isValid;
@@ -382,12 +426,21 @@ export const ConfigPage = ({ isActive, onBack }: ConfigPageProps) => {
 
   return (
     <div style={{ display: isActive ? "block" : "none" }}>
+      <UnsavedChangesDialog
+        open={isConfirmOpen}
+        onOpenChange={setIsConfirmOpen}
+        onDiscard={handleDiscardChanges}
+        onSave={handleSaveAndBack}
+        isSaving={isSaving}
+        isTesting={isTesting}
+        hasErrors={hasErrors}
+      />
       <div className="flex flex-col h-screen w-full">
         <div className="flex items-center gap-3 p-5 bg-[var(--vscode-sideBar-background)] shrink-0">
           <button
             type="button"
             className="m-0 inline-flex items-center rounded-md bg-transparent px-2 py-1 text-base font-semibold text-[var(--vscode-button-foreground)] transition-colors cursor-pointer border-none hover:bg-[var(--vscode-button-hoverBackground)]"
-            onClick={onBack}
+            onClick={handleBackClick}
           >
             {"< Back"}
           </button>

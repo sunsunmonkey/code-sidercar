@@ -211,9 +211,7 @@ export class ToolExecutor {
     // Build details string
     if ("content" in toolUse.params) {
       const content = toolUse.params.content as string;
-      const preview =
-        content.length > 200 ? content.substring(0, 200) + "..." : content;
-      details = `Content preview:\n${preview}`;
+      details = `Content:\n${content}`;
     } else {
       details = `Parameters: ${JSON.stringify(toolUse.params, null, 2)}`;
     }

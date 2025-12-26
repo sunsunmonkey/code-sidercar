@@ -98,28 +98,52 @@ export const ChatPage = ({ isActive, onOpenConfig }: ChatPageProps) => {
     setIsProcessing(isStreaming);
 
     setMessages((prev) => {
-      let lastMessage = prev[prev.length - 1];
-      if (lastMessage && lastMessage.isStreaming) {
-        // remove last
-        prev.pop();
-        // Append to existing message
-        lastMessage = {
+      let lastStreamingIndex = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        const message = prev[i];
+        if (message.role === "assistant" && message.isStreaming) {
+          lastStreamingIndex = i;
+          break;
+        }
+      }
+
+      if (lastStreamingIndex >= 0) {
+        const lastMessage = prev[lastStreamingIndex];
+        let nextContent = lastMessage.content;
+        if (content) {
+          if (
+            content.startsWith(lastMessage.content) ||
+            lastMessage.content.startsWith(content)
+          ) {
+            nextContent = content;
+          } else {
+            nextContent = lastMessage.content + content;
+          }
+        }
+        const updatedMessage = {
           ...lastMessage,
-          content: lastMessage.content + content,
+          content: nextContent,
           isStreaming,
         };
-      } else {
-        // Create new assistant message
-        lastMessage = {
+        return prev.map((msg, index) =>
+          index === lastStreamingIndex ? updatedMessage : msg
+        );
+      }
+
+      if (!content) {
+        return prev;
+      }
+
+      return [
+        ...prev,
+        {
           id: `msg-${Date.now()}`,
           role: "assistant",
           content: content,
           timestamp: new Date(),
           isStreaming,
-        };
-      }
-
-      return [...prev, lastMessage];
+        },
+      ];
     });
   };
 
@@ -127,16 +151,51 @@ export const ChatPage = ({ isActive, onOpenConfig }: ChatPageProps) => {
    * Handle tool call from assistant
    */
   const handleToolCall = (toolCall: ToolUse) => {
-    // Add tool call to messages, will be updated with result later
-    const toolCallMessage: DisplayMessage = {
-      id: `tool-${Date.now()}`,
-      role: "system",
-      content: "",
-      timestamp: new Date(),
-      toolCalls: [toolCall],
-    };
+    // Add or update tool call to messages, will be updated with result later
+    setMessages((prev) => {
+      const toolCallId = toolCall.id;
+      let existingIndex = -1;
 
-    setMessages((prev) => [...prev, toolCallMessage]);
+      if (toolCallId) {
+        existingIndex = prev.findIndex(
+          (msg) =>
+            msg.toolCalls &&
+            msg.toolCalls.some((tc) => tc.id === toolCallId)
+        );
+      } else {
+        for (let i = prev.length - 1; i >= 0; i--) {
+          const msg = prev[i];
+          if (
+            msg.toolCalls &&
+            msg.toolCalls.some((tc) => tc.name === toolCall.name) &&
+            !msg.toolResults
+          ) {
+            existingIndex = i;
+            break;
+          }
+        }
+      }
+
+      if (existingIndex >= 0) {
+        const updatedMessages = [...prev];
+        const existingMessage = updatedMessages[existingIndex];
+        updatedMessages[existingIndex] = {
+          ...existingMessage,
+          toolCalls: [toolCall],
+        };
+        return updatedMessages;
+      }
+
+      const toolCallMessage: DisplayMessage = {
+        id: toolCallId || `tool-${Date.now()}`,
+        role: "system",
+        content: "",
+        timestamp: new Date(),
+        toolCalls: [toolCall],
+      };
+
+      return [...prev, toolCallMessage];
+    });
   };
 
   /**
@@ -145,12 +204,24 @@ export const ChatPage = ({ isActive, onOpenConfig }: ChatPageProps) => {
   const handleToolResult = (result: ToolResult) => {
     // Find the last tool call message and add the result to it
     setMessages((prev) => {
-      const lastToolCallIndex = prev.findIndex(
-        (msg) =>
-          msg.toolCalls &&
-          msg.toolCalls.some((tc) => tc.name === result.tool_name) &&
-          !msg.toolResults
-      );
+      let lastToolCallIndex = -1;
+
+      if (result.tool_call_id) {
+        lastToolCallIndex = prev.findIndex(
+          (msg) =>
+            msg.toolCalls &&
+            msg.toolCalls.some((tc) => tc.id === result.tool_call_id)
+        );
+      }
+
+      if (lastToolCallIndex < 0) {
+        lastToolCallIndex = prev.findIndex(
+          (msg) =>
+            msg.toolCalls &&
+            msg.toolCalls.some((tc) => tc.name === result.tool_name) &&
+            !msg.toolResults
+        );
+      }
 
       if (lastToolCallIndex >= 0) {
         const newMessages = [...prev];

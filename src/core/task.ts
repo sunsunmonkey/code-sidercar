@@ -13,6 +13,7 @@ import { ConversationHistoryManager } from "../managers";
 import {
   AssistantMessageContent,
   AssistantMessageParser,
+  TextContent,
 } from "./assistantMessage";
 import { logger } from "code-sidecar-shared/utils/logger";
 
@@ -168,19 +169,116 @@ export class Task {
 
       const parser = this.createAssistantMessageParser();
       let assistantMessage = "";
+      let lastPublishedText = "";
       let usage: TokenUsage | undefined;
+      let toolCallSequence = 0;
+
+      type ToolCallSnapshot = {
+        name: string;
+        partial: boolean;
+        paramKeys: string[];
+        paramSizes: Record<string, number>;
+      };
+
+      const toolCallSnapshots = new Map<string, ToolCallSnapshot>();
+
+      const getParamSize = (value: unknown): number => {
+        if (typeof value === "string") {
+          return value.length;
+        }
+        if (value === null || value === undefined) {
+          return 0;
+        }
+        return JSON.stringify(value)?.length ?? 0;
+      };
+
+      const buildToolCallSnapshot = (toolCall: ToolUse): ToolCallSnapshot => {
+        const paramEntries = Object.entries(toolCall.params);
+        const paramSizes: Record<string, number> = {};
+        for (const [key, value] of paramEntries) {
+          paramSizes[key] = getParamSize(value);
+        }
+
+        return {
+          name: toolCall.name,
+          partial: !!toolCall.partial,
+          paramKeys: paramEntries.map(([key]) => key),
+          paramSizes,
+        };
+      };
+
+      const hasToolCallChanged = (
+        previous: ToolCallSnapshot | undefined,
+        next: ToolCallSnapshot
+      ): boolean => {
+        if (!previous) {
+          return true;
+        }
+        if (previous.name !== next.name || previous.partial !== next.partial) {
+          return true;
+        }
+        if (previous.paramKeys.length !== next.paramKeys.length) {
+          return true;
+        }
+        for (const key of next.paramKeys) {
+          if (previous.paramSizes[key] !== next.paramSizes[key]) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      const getToolCallId = (toolCall: ToolUse): string => {
+        if (!toolCall.id) {
+          toolCall.id = `tool-${this.id}-${this.loopCount}-${toolCallSequence++}`;
+        }
+        return toolCall.id;
+      };
+
+      const publishToolCallUpdates = (
+        contentBlocks: AssistantMessageContent[]
+      ): void => {
+        const toolCalls = contentBlocks.filter(
+          (block): block is ToolUse => block.type === "tool_use"
+        );
+
+        if (toolCalls.length === 0) {
+          return;
+        }
+
+        for (const toolCall of toolCalls) {
+          const toolCallId = getToolCallId(toolCall);
+          const snapshot = buildToolCallSnapshot(toolCall);
+          const previousSnapshot = toolCallSnapshots.get(toolCallId);
+
+          if (!hasToolCallChanged(previousSnapshot, snapshot)) {
+            continue;
+          }
+
+          toolCallSnapshots.set(toolCallId, snapshot);
+          this.provider.postMessageToWebview({
+            type: "tool_call",
+            toolCall: toolCall,
+          });
+        }
+      };
       for await (const chunk of stream) {
         if (this.isCancelled) {
           break;
         }
         if (chunk.type === "content") {
           assistantMessage += chunk.content;
-          parser.processChunk(chunk.content);
-          this.provider.postMessageToWebview({
-            type: "stream_chunk",
-            content: chunk.content,
-            isStreaming: true,
-          });
+          const contentBlocks = parser.processChunk(chunk.content);
+          publishToolCallUpdates(contentBlocks);
+          const displayText = this.getAssistantDisplayText(contentBlocks);
+          if (displayText !== lastPublishedText) {
+            lastPublishedText = displayText;
+            this.provider.postMessageToWebview({
+              type: "stream_chunk",
+              content: displayText,
+              isStreaming: true,
+            });
+          }
         } else if (chunk.type === "usage") {
           usage = chunk.usage;
         }
@@ -190,10 +288,14 @@ export class Task {
 
       parser.finalizeContentBlocks();
 
+      const finalizedBlocks = parser.getContentBlocks();
+      const finalizedText = this.getAssistantDisplayText(finalizedBlocks);
+      const finalDisplayText = finalizedText || lastPublishedText;
+
       // completely stream
       this.provider.postMessageToWebview({
         type: "stream_chunk",
-        content: "",
+        content: finalDisplayText,
         isStreaming: false,
       });
 
@@ -205,22 +307,29 @@ export class Task {
         `[Task ${this.id}] Loop ${this.loopCount}: Assistant response received`
       );
 
-      // Add assistant message to history
+      // Parse assistant message for tool calls
+      const assistantContent = this.buildAssistantContent(
+        finalizedBlocks,
+        assistantMessage
+      );
+
+      // Add assistant message to history for the LLM
       const assistantHistoryItem: HistoryItem = {
         role: "assistant",
         content: assistantMessage,
       };
-
       this.history.push(assistantHistoryItem);
 
-      // Save assistant message to history
-      this.conversationHistoryManager.addMessage(assistantHistoryItem);
-
-      // Parse assistant message for tool calls
-      const assistantContent = this.buildAssistantContent(
-        parser.getContentBlocks(),
-        assistantMessage
+      // Save assistant message to display history (tool XML stripped)
+      const assistantDisplayContent = this.getAssistantDisplayText(
+        assistantContent
       );
+      if (assistantDisplayContent) {
+        this.conversationHistoryManager.addMessage({
+          role: "assistant",
+          content: assistantDisplayContent,
+        });
+      }
       const toolCalls = assistantContent.filter(
         (content): content is ToolUse => content.type === "tool_use"
       );
@@ -316,6 +425,24 @@ export class Task {
     ];
   }
 
+  private getAssistantDisplayText(
+    contentBlocks: AssistantMessageContent[]
+  ): string {
+    const textBlocks = contentBlocks.filter(
+      (block): block is TextContent => block.type === "text"
+    );
+
+    if (textBlocks.length === 0) {
+      return "";
+    }
+
+    return textBlocks
+      .map((block) => block.content)
+      .filter((content) => content.trim().length > 0)
+      .join("\n\n")
+      .trim();
+  }
+
   /**
    * Create a streaming parser wired to the registered tool names and parameters.
    */
@@ -365,6 +492,9 @@ export class Task {
 
       // Execute tool using ToolExecutor
       const result = await this.toolExecutor.executeTool(toolCall);
+      if (toolCall.id) {
+        result.tool_call_id = toolCall.id;
+      }
 
       results.push(result);
     }
@@ -575,4 +705,3 @@ Always use the actual tool name as the XML tag name for proper parsing and execu
 `;
   }
 }
-

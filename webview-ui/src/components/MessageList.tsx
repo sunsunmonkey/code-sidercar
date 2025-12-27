@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useRef } from "react";
 import { MessageSquare } from "lucide-react";
 import { Message } from "./Message";
-import type { DisplayMessage } from "code-sidecar-shared/types/messages";
+import type { DisplayMessage, TaskDiff } from "code-sidecar-shared/types/messages";
 import { logger } from "code-sidecar-shared/utils/logger";
 
 const AUTO_SCROLL_THRESHOLD_PX = 32;
@@ -10,6 +10,7 @@ const SCROLL_UP_THRESHOLD_PX = 2;
 interface MessageListProps {
   messages: DisplayMessage[];
   onPermissionResponse?: (requestId: string, approved: boolean) => void;
+  onSelectDiffFile?: (diff: TaskDiff, filePath: string) => void;
 }
 
 /**
@@ -19,6 +20,7 @@ interface MessageListProps {
 export const MessageList: React.FC<MessageListProps> = ({
   messages,
   onPermissionResponse,
+  onSelectDiffFile,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const autoScrollEnabledRef = useRef(true);
@@ -87,6 +89,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           message={message}
           suppressCursor={hasStreamingToolCall}
           onPermissionResponse={onPermissionResponse}
+          onSelectDiffFile={onSelectDiffFile}
         />
       ))}
     </div>

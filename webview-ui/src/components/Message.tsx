@@ -20,14 +20,16 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import type { DisplayMessage } from "code-sidecar-shared/types/messages";
+import type { DisplayMessage, TaskDiff } from "code-sidecar-shared/types/messages";
 import { ToolCallDisplay } from "./ToolCallDisplay";
 import { useTheme } from "../hooks/useTheme";
+import { DiffPreviewCard } from "./DiffPreviewCard";
 
 interface MessageProps {
   message: DisplayMessage;
   onPermissionResponse?: (requestId: string, approved: boolean) => void;
   suppressCursor?: boolean;
+  onSelectDiffFile?: (diff: TaskDiff, filePath: string) => void;
 }
 
 const TOOL_TAG_NAMES = [
@@ -103,6 +105,7 @@ export const Message: React.FC<MessageProps> = ({
   message,
   onPermissionResponse,
   suppressCursor,
+  onSelectDiffFile,
 }) => {
   const themeKind = useTheme();
   const [isPermissionExpanded, setIsPermissionExpanded] = React.useState(false);
@@ -133,6 +136,8 @@ export const Message: React.FC<MessageProps> = ({
     cleanedContent &&
     !isError &&
     !completionToolCall;
+  const baseMessageClasses =
+    "mb-3 p-2 rounded-md bg-[var(--vscode-editor-background)] shadow-[0_3px_10px_rgba(0,0,0,0.12)] w-full";
 
   // Select syntax highlighter theme based on VSCode theme
   const syntaxTheme = themeKind === "light" ? vs : vscDarkPlus;
@@ -396,6 +401,20 @@ export const Message: React.FC<MessageProps> = ({
     );
   }
 
+  if (message.diffPreview) {
+    const diffPreview = message.diffPreview;
+    return (
+      <div className={baseMessageClasses}>
+        <DiffPreviewCard
+          diff={diffPreview}
+          onSelectFile={(filePath) =>
+            onSelectDiffFile?.(diffPreview, filePath)
+          }
+        />
+      </div>
+    );
+  }
+
   const hasToolCalls = toolCalls && toolCalls.length > 0;
   const hasToolResults = toolResults && toolResults.length > 0;
   const roleMeta = {
@@ -410,8 +429,6 @@ export const Message: React.FC<MessageProps> = ({
 
   // Don't show header for tool-only messages
   const showHeader = role === "user" || cleanedContent || isError;
-  const baseMessageClasses =
-    "mb-3 p-2 rounded-md bg-[var(--vscode-editor-background)] shadow-[0_3px_10px_rgba(0,0,0,0.12)] w-full";
   const messageClasses = `${baseMessageClasses} ${
     role === "user" ? "bg-[var(--vscode-input-background)]" : ""
   } ${

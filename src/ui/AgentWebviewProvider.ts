@@ -25,6 +25,7 @@ import { ConfigurationManager } from "../config/ConfigurationManager";
 import { ConversationHistoryManager } from "../managers/ConversationHistoryManager";
 import { ErrorHandler } from "../managers/ErrorHandler";
 import { logger } from "code-sidecar-shared/utils/logger";
+import { DiffWebviewPanel } from "./DiffWebviewPanel";
 import type {
   DisplayMessage,
   AgentConfiguration,
@@ -215,6 +216,8 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
     delete_conversation: (message) =>
       this.handleDeleteConversation(message.conversationId),
     get_configuration: () => this.handleGetConfiguration(),
+    open_diff_panel: (message) =>
+      this.handleOpenDiffPanel(message.diff, message.filePath),
     save_configuration: (message) =>
       this.handleSaveConfiguration(message.config),
     test_connection: (message) => this.handleTestConnection(message.apiConfig),
@@ -550,6 +553,13 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
         message: `Failed to delete conversation: ${errorMessage}`,
       });
     }
+  }
+
+  private handleOpenDiffPanel(
+    diff: Extract<UserMessage, { type: "open_diff_panel" }>["diff"],
+    filePath?: string
+  ): void {
+    DiffWebviewPanel.show(diff, filePath);
   }
 
   /**

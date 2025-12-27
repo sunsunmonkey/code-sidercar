@@ -1,4 +1,7 @@
+import * as path from "path";
+import * as vscode from "vscode";
 import { Tool, ToolDefinition } from "./Tool";
+import type { FileChangeTracker } from "./fileChangeTracker";
 import { PermissionManager } from "../managers/PermissionManager";
 import { ErrorHandler, ErrorContext } from "../managers/ErrorHandler";
 import { logger } from "code-sidecar-shared/utils/logger";
@@ -13,6 +16,7 @@ export class ToolExecutor {
   private tools: Map<string, Tool> = new Map();
   private permissionManager: PermissionManager | undefined;
   private errorHandler: ErrorHandler | undefined;
+  private fileChangeTracker: FileChangeTracker | undefined;
 
   constructor(
     permissionManager: PermissionManager,
@@ -20,6 +24,10 @@ export class ToolExecutor {
   ) {
     this.permissionManager = permissionManager;
     this.errorHandler = errorHandler;
+  }
+
+  setFileChangeTracker(tracker: FileChangeTracker | undefined): void {
+    this.fileChangeTracker = tracker;
   }
 
   /**
@@ -117,6 +125,14 @@ export class ToolExecutor {
       }
     }
 
+    const filePath =
+      typeof toolUse.params.path === "string" ? toolUse.params.path : "";
+    const shouldTrackFileChange =
+      !!this.fileChangeTracker && this.isFileChangeTool(toolUse.name) && filePath;
+    const beforeContent = shouldTrackFileChange
+      ? await this.readFileSafe(filePath)
+      : "";
+
     try {
       logger.debug(
         `Executing tool: ${toolUse.name} with params:`,
@@ -124,16 +140,28 @@ export class ToolExecutor {
       );
 
       // Execute the tool (Requirements 13.1, 13.2, 13.3, 13.4, 13.5, 13.6)
-      const result = await tool.execute(toolUse.params);
+      const resultContent = await tool.execute(toolUse.params);
 
       logger.debug(`Tool ${toolUse.name} executed successfully`);
 
-      return {
+      const result: ToolResult = {
         type: "tool_result",
         tool_name: toolUse.name,
-        content: result,
+        content: resultContent,
         is_error: false,
       };
+
+      if (shouldTrackFileChange) {
+        const afterContent = await this.readFileSafe(filePath);
+        this.fileChangeTracker?.recordChange({
+          path: filePath,
+          before: beforeContent,
+          after: afterContent,
+          toolName: toolUse.name,
+        });
+      }
+
+      return result;
     } catch (error) {
       logger.debug(`Tool execution error for ${toolUse.name}:`, error);
 
@@ -171,6 +199,48 @@ export class ToolExecutor {
         content: `Error executing tool '${toolUse.name}': ${errorMessage}`,
         is_error: true,
       };
+    }
+  }
+
+  private isFileChangeTool(toolName: string): boolean {
+    return (
+      toolName === "write_file" ||
+      toolName === "apply_diff" ||
+      toolName === "insert_content"
+    );
+  }
+
+  private resolveFilePath(filePath: string): string | null {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return null;
+    }
+
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const resolvedPath = path.isAbsolute(filePath)
+      ? filePath
+      : path.join(workspaceRoot, filePath);
+    const normalizedPath = path.normalize(resolvedPath);
+
+    if (!normalizedPath.startsWith(workspaceRoot)) {
+      return null;
+    }
+
+    return normalizedPath;
+  }
+
+  private async readFileSafe(filePath: string): Promise<string> {
+    const resolvedPath = this.resolveFilePath(filePath);
+    if (!resolvedPath) {
+      return "";
+    }
+
+    try {
+      const uri = vscode.Uri.file(resolvedPath);
+      const fileContent = await vscode.workspace.fs.readFile(uri);
+      return Buffer.from(fileContent).toString("utf-8");
+    } catch (error) {
+      return "";
     }
   }
 

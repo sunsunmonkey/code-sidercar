@@ -1,4 +1,5 @@
 import type { PermissionRequestWithId } from "./permissions";
+import type { TaskDiff } from "./diff";
 import type { ToolResult, ToolUse } from "./tools";
 
 export interface ConversationSummary {
@@ -21,4 +22,5 @@ export interface DisplayMessage {
   isStreaming?: boolean;
   isError?: boolean;
   permissionRequest?: PermissionRequestWithId;
+  diffPreview?: TaskDiff;
 }

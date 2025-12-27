@@ -149,7 +149,7 @@ const ToolParamValue: React.FC<ToolParamValueProps> = ({
     <pre
       ref={scrollRef}
       onScroll={handleScroll}
-      className="m-0 text-[11px] text-[var(--vscode-textPreformat-foreground)] whitespace-pre max-h-[220px] max-w-full overflow-x-auto overflow-y-auto"
+      className="m-0 w-full text-[11px] text-[var(--vscode-textPreformat-foreground)] whitespace-pre max-h-[220px] max-w-full overflow-x-auto overflow-y-auto"
     >
       {value}
       {showCursor && (
@@ -264,14 +264,14 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
                   No parameters
                 </div>
               ) : (
-                <table className="w-full border-collapse text-[12px]">
+                <table className="w-full table-fixed border-collapse text-[12px]">
                   <tbody>
                     {paramEntries.map(([key, value]) => (
                       <tr key={key} className="last:border-b-0">
                         <td className="py-1 pr-2 font-semibold text-[var(--vscode-symbolIcon-variableForeground)] align-top w-[30%] min-w-[90px]">
                           {key}
                         </td>
-                        <td className="py-1 pl-2 text-[var(--vscode-foreground)] break-words">
+                        <td className="py-1 pl-2 text-[var(--vscode-foreground)] align-top min-w-0">
                           <ToolParamValue
                             value={formatParamValue(value)}
                             isStreaming={isStreaming && key === streamingParamKey}

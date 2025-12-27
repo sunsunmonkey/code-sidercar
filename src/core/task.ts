@@ -15,6 +15,7 @@ import {
   AssistantMessageParser,
   TextContent,
 } from "./assistantMessage";
+import { TaskDiffTracker } from "./TaskDiffTracker";
 import { logger } from "code-sidecar-shared/utils/logger";
 
 import type { ApiConfiguration } from "code-sidecar-shared/types/api";
@@ -37,7 +38,9 @@ export class Task {
   private errorHandler: ErrorHandler;
   private contextWindowTokens: number;
   private isCancelled = false;
+  private isCompleted = false;
   private abortController: AbortController | null = null;
+  private diffTracker: TaskDiffTracker;
 
   constructor(
     private provider: AgentWebviewProvider,
@@ -61,6 +64,7 @@ export class Task {
     this.conversationHistoryManager = conversationHistoryManager;
     this.errorHandler = errorHandler;
     this.contextWindowTokens = contextWindowTokens || 0;
+    this.diffTracker = new TaskDiffTracker(this.id);
   }
 
   /**
@@ -68,6 +72,7 @@ export class Task {
    */
   async start() {
     try {
+      this.toolExecutor.setFileChangeTracker(this.diffTracker);
       // Collect context before starting
       logger.debug(`[Task ${this.id}] Collecting project context...`);
       const context = await this.contextCollector.collectContext();
@@ -139,7 +144,7 @@ export class Task {
           type: "error",
           message: `已达到最大循环次数限制 (${this.maxLoopCount})。任务可能过于复杂，请简化任务或分解为多个步骤。`,
         });
-        this.provider.postMessageToWebview({ type: "task_complete" });
+        this.completeTask();
         return;
       }
 
@@ -350,7 +355,7 @@ export class Task {
         } else {
           // Empty response - end the loop
           logger.debug(`[Task ${this.id}] Empty response, ending ReAct loop`);
-          this.provider.postMessageToWebview({ type: "task_complete" });
+          this.completeTask();
         }
         return;
       }
@@ -393,7 +398,7 @@ export class Task {
         logger.debug(
           `[Task ${this.id}] Task completion requested, ending ReAct loop`
         );
-        this.provider.postMessageToWebview({ type: "task_complete" });
+        this.completeTask();
         return;
       }
 
@@ -592,6 +597,21 @@ export class Task {
     this.isCancelled = true;
     this.abortController?.abort();
     this.abortController = null;
+    this.completeTask();
+  }
+
+  private completeTask(): void {
+    if (this.isCompleted) {
+      return;
+    }
+    this.isCompleted = true;
+    this.toolExecutor.setFileChangeTracker(undefined);
+
+    const diff = this.diffTracker.buildTaskDiff();
+    if (diff) {
+      this.provider.postMessageToWebview({ type: "task_diff", diff });
+    }
+
     this.provider.postMessageToWebview({ type: "task_complete" });
   }
 
@@ -668,7 +688,7 @@ export class Task {
 
     // If no recovery or recovery failed, end the task
     logger.debug(`[Task ${this.id}] Task failed due to error in ${operation}`);
-    this.provider.postMessageToWebview({ type: "task_complete" });
+    this.completeTask();
   }
 
   private createAbortController(): AbortController {

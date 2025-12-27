@@ -12,6 +12,7 @@ import type {
   WorkMode,
   TokenUsageSnapshot,
   PermissionRequestWithId,
+  TaskDiff,
 } from "code-sidecar-shared/types/messages";
 import { vscode } from "../utils/vscode";
 import { logger } from "code-sidecar-shared/utils/logger";
@@ -54,6 +55,10 @@ export const ChatPage = ({ isActive, onOpenConfig }: ChatPageProps) => {
 
       case "task_complete":
         handleTaskComplete();
+        break;
+
+      case "task_diff":
+        handleTaskDiff(message.diff);
         break;
 
       case "mode_changed":
@@ -269,6 +274,18 @@ export const ChatPage = ({ isActive, onOpenConfig }: ChatPageProps) => {
     setIsProcessing(false);
   };
 
+  const handleTaskDiff = (diff: TaskDiff) => {
+    const diffMessage: DisplayMessage = {
+      id: `diff-${diff.taskId}-${Date.now()}`,
+      role: "system",
+      content: "",
+      timestamp: new Date(),
+      diffPreview: diff,
+    };
+
+    setMessages((prev) => [...prev, diffMessage]);
+  };
+
   /**
    * Send user message to extension
    */
@@ -388,6 +405,17 @@ export const ChatPage = ({ isActive, onOpenConfig }: ChatPageProps) => {
     );
   };
 
+  const handleDiffFileSelect = useCallback(
+    (diff: TaskDiff, filePath: string) => {
+      vscode.postMessage({
+        type: "open_diff_panel",
+        diff,
+        filePath,
+      });
+    },
+    []
+  );
+
   /**
    * Set up message listener and load conversation history
    */
@@ -436,6 +464,7 @@ export const ChatPage = ({ isActive, onOpenConfig }: ChatPageProps) => {
             <MessageList
               messages={messages}
               onPermissionResponse={handlePermissionResponse}
+              onSelectDiffFile={handleDiffFileSelect}
             />
           </div>
 

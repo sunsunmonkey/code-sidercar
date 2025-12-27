@@ -4,11 +4,13 @@ import type { AgentConfiguration, ValidationErrors } from "./config";
 import type { WorkMode } from "./modes";
 import type { OperationRecord } from "./operations";
 import type { PermissionRequestWithId } from "./permissions";
+import type { TaskDiff } from "./diff";
 import type { ToolResult, ToolUse } from "./tools";
 
 export type { ApiConfiguration } from "./api";
 export type { ConversationSummary, DisplayMessage, MessageRole } from "./conversation";
 export type { AgentConfiguration, ValidationErrors } from "./config";
+export type { TaskDiff } from "./diff";
 export type { WorkMode } from "./modes";
 export type { OperationRecord, OperationType } from "./operations";
 export type { PermissionRequest, PermissionRequestWithId } from "./permissions";
@@ -42,6 +44,7 @@ export type WebviewMessage =
   | { type: "stream_chunk"; content: string; isStreaming: boolean }
   | { type: "tool_call"; toolCall: ToolUse }
   | { type: "tool_result"; content: ToolResult }
+  | { type: "task_diff"; diff: TaskDiff }
   | { type: "error"; message: string }
   | { type: "task_complete" }
   | { type: "mode_changed"; mode: WorkMode }
@@ -79,6 +82,7 @@ export type UserMessage =
   | { type: "get_conversation_list" }
   | { type: "switch_conversation"; conversationId: string }
   | { type: "delete_conversation"; conversationId: string }
+  | { type: "open_diff_panel"; diff: TaskDiff; filePath?: string }
   | { type: "get_configuration" }
   | { type: "save_configuration"; config: AgentConfiguration }
   | { type: "test_connection"; apiConfig: ApiConfiguration }
